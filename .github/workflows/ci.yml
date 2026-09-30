@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python tests (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]   # 3.11 = Proxmox VE 8 (Debian 12)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install flask pyyaml pytest
+      - run: python -m py_compile balancer/balancer.py dashboard/app.py
+      - run: pytest tests -v
+
+  javascript:
+    name: JavaScript checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax check (widget + dashboard inline script)
+        run: |
+          node --check widget/clusterbalance.js
+          python3 - <<'PY'
+          import re, pathlib
+          html = pathlib.Path("dashboard/templates/index.html").read_text(encoding="utf-8")
+          js = "\n".join(re.findall(r"<script>(.*?)</script>", html, re.S))
+          pathlib.Path("/tmp/dashboard.js").write_text(js, encoding="utf-8")
+          PY
+          node --check /tmp/dashboard.js
+      - name: n8n alert node tests
+        run: node --test tests/*.test.mjs
+
+  shell:
+    name: Shell lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck -S warning install.sh

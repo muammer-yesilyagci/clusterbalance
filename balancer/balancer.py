@@ -42,9 +42,10 @@ except ImportError:
     HAS_REQUESTS = False
 
 # Configuration
-CONFIG_FILE = "/opt/clusterbalance/config.yaml"
-STATE_FILE = "/opt/clusterbalance/maintenance_state.json"  # bakim: bosaltilan VM'ler + geri donus istekleri
-LOG_FILE = "/var/log/clusterbalance.log"
+CB_DIR = os.environ.get("CB_DIR", "/opt/clusterbalance")
+CONFIG_FILE = os.environ.get("CB_CONFIG", f"{CB_DIR}/config.yaml")
+STATE_FILE = os.environ.get("CB_STATE_FILE", f"{CB_DIR}/maintenance_state.json")  # bakim: bosaltilan VM'ler + geri donus istekleri
+LOG_FILE = os.environ.get("CB_LOG", "/var/log/clusterbalance.log")
 
 # Default configuration
 DEFAULT_CONFIG = {

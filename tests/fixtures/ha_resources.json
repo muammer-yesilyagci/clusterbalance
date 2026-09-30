@@ -1,0 +1,152 @@
+[
+ {
+  "group": "production",
+  "sid": "vm:208",
+  "state": "stopped",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:221",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:121",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:161",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:141",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:110",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:111",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:211",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:401",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:151",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:300",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:201",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:301",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:190",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:112",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:191",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:102",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:231",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:131",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:222",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:181",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:170",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:171",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "pve2-fixed",
+  "sid": "vm:500",
+  "state": "started",
+  "type": "vm"
+ },
+ {
+  "group": "production",
+  "sid": "vm:501",
+  "state": "started",
+  "type": "vm"
+ }
+]

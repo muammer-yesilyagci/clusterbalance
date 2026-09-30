@@ -2,6 +2,7 @@
 
 **Proxmox VE cluster'ları için güvenliği ön planda tutan yük dengeleyici, bakım modu ve sağlık paneli.**
 
+[![CI](https://github.com/muammer-yesilyagci/clusterbalance/actions/workflows/ci.yml/badge.svg)](https://github.com/muammer-yesilyagci/clusterbalance/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Proxmox VE 8.x](https://img.shields.io/badge/Proxmox%20VE-8.x-E57000)
 ![Python 3](https://img.shields.io/badge/Python-3.11-3776AB)
@@ -333,6 +334,19 @@ sed -i '/clusterbalance.js/d' /usr/share/pve-manager/index.html.tpl; rm -f /usr/
 
 Issue ve pull request'lere açığız. Dengeleme davranışı bildirirken cluster'ınızı (Proxmox sürümü, node sayısı, depolama türü)
 yazın ve `/var/log/clusterbalance.log`'un ilgili kısmını ekleyin.
+
+### Testleri çalıştırma
+
+Testler, gerçek bir 3 node'lu cluster'ın anonimleştirilmiş görüntüsü (`tests/fixtures/`) üzerinde sahte bir `pvesh` ile
+çalışır; Proxmox sunucusu gerekmez ve hiçbir sunucuya dokunmaz:
+
+```bash
+pip install flask pyyaml pytest
+pytest tests            # dengeleme planı, güvenlik kontrolleri, bakım modu, panel API'si
+node --test tests/*.test.mjs   # n8n uyarı düğümü
+```
+
+Her push ve pull request'te aynı kontroller GitHub Actions'ta çalışır (ayrıca `shellcheck` ve JS sözdizimi kontrolü).
 
 ## Emeği geçenler
 

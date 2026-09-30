@@ -1,0 +1,16 @@
+[
+ {
+  "group": "pve2-fixed",
+  "nodes": "pve2",
+  "nofailback": 1,
+  "restricted": 1,
+  "type": "group"
+ },
+ {
+  "group": "production",
+  "nodes": "pve3:3,pve2:2,pve1:1",
+  "nofailback": 1,
+  "restricted": 0,
+  "type": "group"
+ }
+]

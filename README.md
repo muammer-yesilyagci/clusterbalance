@@ -2,6 +2,7 @@
 
 **A safety-first load balancer, maintenance mode and health dashboard for Proxmox VE clusters.**
 
+[![CI](https://github.com/muammer-yesilyagci/clusterbalance/actions/workflows/ci.yml/badge.svg)](https://github.com/muammer-yesilyagci/clusterbalance/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Proxmox VE 8.x](https://img.shields.io/badge/Proxmox%20VE-8.x-E57000)
 ![Python 3](https://img.shields.io/badge/Python-3.11-3776AB)
@@ -336,6 +337,19 @@ sed -i '/clusterbalance.js/d' /usr/share/pve-manager/index.html.tpl; rm -f /usr/
 
 Issues and pull requests are welcome. Please describe your cluster (Proxmox version, number of nodes, storage type)
 when reporting balancing behaviour, and attach the relevant part of `/var/log/clusterbalance.log`.
+
+### Running the tests
+
+The test suite runs against an anonymized snapshot of a real 3-node cluster (`tests/fixtures/`) through a fake
+`pvesh`, so it needs no Proxmox host and never touches one:
+
+```bash
+pip install flask pyyaml pytest
+pytest tests            # balancer planning, safety checks, maintenance mode, dashboard API
+node --test tests/*.test.mjs   # n8n alert node
+```
+
+Every push and pull request runs the same checks on GitHub Actions (plus `shellcheck` and JS syntax checks).
 
 ## Credits
 

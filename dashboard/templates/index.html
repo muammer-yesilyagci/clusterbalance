@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,6 +64,8 @@
         .hist-scroll { scrollbar-width: thin; scrollbar-color: #2f3642 transparent; }
         .text-cpu { color: var(--cpu); } .text-ram { color: var(--ram); } .text-disk { color: var(--disk); }
         .bg-cpu { background: var(--cpu); } .bg-ram { background: var(--ram); }
+        .lang-btn { color: var(--muted); background: transparent; }
+        .lang-btn.active { background: var(--accent-soft); color: var(--text); }
         .text-gray-400 { color: var(--muted) !important; } .text-gray-500 { color: var(--faint) !important; }
         @media (max-width: 768px) {
             .sidebar { transform: translateX(-100%); position: fixed; z-index: 50; height: 100vh; }
@@ -88,26 +90,26 @@
         </div>
         <nav class="p-2 space-y-1">
             <a href="#" onclick="showPage('dashboard')" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="dashboard">
-                <i class="fas fa-chart-pie w-5"></i> Dashboard
+                <i class="fas fa-chart-pie w-5"></i> <span data-i18n="nav.dashboard">Dashboard</span>
             </a>
             <a href="#" onclick="showPage('nodes')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="nodes">
-                <i class="fas fa-server w-5"></i> Node'lar
+                <i class="fas fa-server w-5"></i> <span data-i18n="nav.nodes">Node'lar</span>
             </a>
             <a href="#" onclick="showPage('vms')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="vms">
-                <i class="fas fa-desktop w-5"></i> Sanal Makineler
+                <i class="fas fa-desktop w-5"></i> <span data-i18n="nav.vms">Sanal Makineler</span>
             </a>
             <a href="#" onclick="showPage('containers')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="containers">
-                <i class="fas fa-cube w-5"></i> Container'lar
+                <i class="fas fa-cube w-5"></i> <span data-i18n="nav.containers">Container'lar</span>
             </a>
             <a href="#" onclick="showPage('balance')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="balance">
-                <i class="fas fa-balance-scale w-5"></i> Dengeleme
+                <i class="fas fa-balance-scale w-5"></i> <span data-i18n="nav.balance">Dengeleme</span>
             </a>
             <a href="#" onclick="showPage('monitor')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="monitor">
-                <i class="fas fa-chart-line w-5"></i> Monitoring
+                <i class="fas fa-chart-line w-5"></i> <span data-i18n="nav.monitor">İzleme</span>
             </a>
             <div class="border-t border-white/10 my-2"></div>
             <a href="#" onclick="showPage('settings')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="settings">
-                <i class="fas fa-cog w-5"></i> Ayarlar
+                <i class="fas fa-cog w-5"></i> <span data-i18n="nav.settings">Ayarlar</span>
             </a>
         </nav>
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
@@ -127,9 +129,13 @@
                     <h2 id="pageTitle" class="text-lg font-semibold">Dashboard</h2>
                 </div>
                 <div class="flex items-center gap-4">
+                    <div class="flex rounded-lg overflow-hidden border text-xs" style="border-color:var(--line)" data-i18n-title="hdr.lang" title="Dil">
+                        <button onclick="setLang('tr')" data-lang="tr" class="lang-btn px-2 py-1">TR</button>
+                        <button onclick="setLang('en')" data-lang="en" class="lang-btn px-2 py-1">EN</button>
+                    </div>
                     <span id="lastUpdate" class="text-sm text-gray-400"></span>
                     <button onclick="refreshAll()" class="px-4 py-2 btn-orange rounded-lg text-sm font-medium transition flex items-center gap-2">
-                        <i class="fas fa-sync-alt"></i> Yenile
+                        <i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Yenile</span>
                     </button>
                 </div>
             </div>
@@ -140,52 +146,52 @@
             <div id="page-dashboard" class="page active">
                 <!-- Saglik Kartlari -->
                 <div class="flex items-center justify-between mb-3">
-                    <h2 class="font-semibold text-lg flex items-center gap-2"><i class="fas fa-heart-pulse text-gray-400"></i> Sistem Sagligi</h2>
+                    <h2 class="font-semibold text-lg flex items-center gap-2"><i class="fas fa-heart-pulse text-gray-400"></i> <span data-i18n="hc.title">Sistem Sağlığı</span></h2>
                     <div class="flex items-center gap-3">
                         <span id="health-time" class="text-xs text-gray-500">-</span>
-                        <button onclick="toggleLegend()" title="Kartlar neye gore renk degistirir?" class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition"><i class="fas fa-circle-info"></i> Bilgi</button>
+                        <button onclick="toggleLegend()" data-i18n-title="hc.legend_q" title="Kartlar neye göre renk değiştirir?" class="text-xs px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 transition"><i class="fas fa-circle-info"></i> <span data-i18n="common.info">Bilgi</span></button>
                     </div>
                 </div>
                 <div id="hc-legend" class="hidden glass rounded-xl p-4 border mb-4 text-xs">
-                    <p class="text-sm text-gray-300 font-medium mb-3"><i class="fas fa-circle-info text-gray-400"></i> Kartlar neye gore renk degistirir?</p>
+                    <p class="text-sm text-gray-300 font-medium mb-3"><i class="fas fa-circle-info text-gray-400"></i> <span data-i18n="hc.legend_q">Kartlar neye göre renk değiştirir?</span></p>
                     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 text-gray-300">
                         <div>
-                            <p class="font-semibold text-gray-100 mb-1">Cluster / Quorum</p>
-                            <p><span class="dot ok"></span>Quorum var ve tum node'lar cevrimici</p>
-                            <p><span class="dot bad"></span>Quorum kaybedildi veya bir node erisilemiyor</p>
+                            <p class="font-semibold text-gray-100 mb-1" data-i18n="hc.cluster">Cluster / Quorum</p>
+                            <p><span class="dot ok"></span><span data-i18n="lg.cluster_ok">Quorum var ve tüm node'lar çevrimiçi</span></p>
+                            <p><span class="dot bad"></span><span data-i18n="lg.cluster_bad">Quorum kaybedildi veya bir node erişilemiyor</span></p>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-100 mb-1">Depolama Baglantilari</p>
-                            <p><span class="dot ok"></span>Paylasimli dizin depolamalari (NFS vb.) her node'da bagli</p>
-                            <p><span class="dot bad"></span>Herhangi bir node'da disk bagli degil &mdash; VM'ler o node'a gecemez</p>
+                            <p class="font-semibold text-gray-100 mb-1" data-i18n="hc.storage">Depolama Bağlantıları</p>
+                            <p><span class="dot ok"></span><span data-i18n="lg.storage_ok">Paylaşımlı dizin depolamaları (NFS vb.) her node'da bağlı</span></p>
+                            <p><span class="dot bad"></span><span data-i18n="lg.storage_bad">Herhangi bir node'da disk bağlı değil — VM'ler o node'a geçemez</span></p>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-100 mb-1">HA Servisleri</p>
-                            <p><span class="dot ok"></span>Tum servisler olmasi gereken durumda</p>
-                            <p><span class="dot bad"></span>Bir servis error / fence / recovery durumunda ya da calismasi gerekirken calismiyor</p>
+                            <p class="font-semibold text-gray-100 mb-1" data-i18n="hc.ha">HA Servisleri</p>
+                            <p><span class="dot ok"></span><span data-i18n="lg.ha_ok">Tüm servisler olması gereken durumda</span></p>
+                            <p><span class="dot bad"></span><span data-i18n="lg.ha_bad">Bir servis error / fence / recovery durumunda ya da çalışması gerekirken çalışmıyor</span></p>
                         </div>
                         <div>
-                            <p class="font-semibold text-gray-100 mb-1">Yedekler (PBS)</p>
-                            <p><span class="dot ok"></span>Tum VM'ler son 26 saatte yedeklendi</p>
-                            <p><span class="dot warn"></span>Son yedek 26 saatten eski</p>
-                            <p><span class="dot bad"></span>Son yedek 50 saatten eski veya hic yedek yok</p>
+                            <p class="font-semibold text-gray-100 mb-1" data-i18n="hc.backups">Yedekler (PBS)</p>
+                            <p><span class="dot ok"></span><span data-i18n="lg.bk_ok">Tüm VM'ler son 26 saatte yedeklendi</span></p>
+                            <p><span class="dot warn"></span><span data-i18n="lg.bk_warn">Son yedek 26 saatten eski</span></p>
+                            <p><span class="dot bad"></span><span data-i18n="lg.bk_bad">Son yedek 50 saatten eski veya hiç yedek yok</span></p>
                         </div>
                     </div>
-                    <p class="text-gray-500 mt-3">Son 24 saatte basarisiz bir Proxmox gorevi (migration, yedek vb.) olursa kartlarin altinda ayri bir kirmizi kutu acilir. Veriler 30 saniyede bir yenilenir; yedek bilgisi 5 dakikada bir guncellenir.</p>
+                    <p class="text-gray-500 mt-3" data-i18n="lg.footer">Son 24 saatte başarısız bir Proxmox görevi (migration, yedek vb.) olursa kartların altında ayrı bir kırmızı kutu açılır. Veriler 30 saniyede bir yenilenir; yedek bilgisi 5 dakikada bir güncellenir.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
-                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-cluster"><p class="text-sm text-gray-400">Cluster / Quorum</p><div class="hc-body text-sm mt-2">Yukleniyor...</div></div>
-                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-storage"><p class="text-sm text-gray-400">Depolama Baglantilari</p><div class="hc-body text-sm mt-2">Yukleniyor...</div></div>
-                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-ha"><p class="text-sm text-gray-400">HA Servisleri</p><div class="hc-body text-sm mt-2">Yukleniyor...</div></div>
-                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-backups"><p class="text-sm text-gray-400">Yedekler (PBS)</p><div class="hc-body text-sm mt-2">Yukleniyor...</div></div>
+                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-cluster"><p class="text-sm text-gray-400" data-i18n="hc.cluster">Cluster / Quorum</p><div class="hc-body text-sm mt-2"><span data-i18n="common.loading">Yükleniyor...</span></div></div>
+                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-storage"><p class="text-sm text-gray-400" data-i18n="hc.storage">Depolama Bağlantıları</p><div class="hc-body text-sm mt-2"><span data-i18n="common.loading">Yükleniyor...</span></div></div>
+                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-ha"><p class="text-sm text-gray-400" data-i18n="hc.ha">HA Servisleri</p><div class="hc-body text-sm mt-2"><span data-i18n="common.loading">Yükleniyor...</span></div></div>
+                    <div class="glass rounded-xl p-4 border border-white/10" id="hc-backups"><p class="text-sm text-gray-400" data-i18n="hc.backups">Yedekler (PBS)</p><div class="hc-body text-sm mt-2"><span data-i18n="common.loading">Yükleniyor...</span></div></div>
                 </div>
-                <div id="hc-tasks" class="hidden glass rounded-xl p-4 border hc-bad mb-6"><p class="text-sm text-red-400 font-medium mb-2"><i class="fas fa-triangle-exclamation"></i> Son 24 saatte basarisiz gorevler</p><div class="hc-body text-xs font-mono text-gray-300"></div></div>
+                <div id="hc-tasks" class="hidden glass rounded-xl p-4 border hc-bad mb-6"><p class="text-sm text-red-400 font-medium mb-2"><i class="fas fa-triangle-exclamation"></i> <span data-i18n="hc.failed_tasks">Son 24 saatte başarısız görevler</span></p><div class="hc-body text-xs font-mono text-gray-300"></div></div>
                 <!-- Stats Cards -->
                 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div class="glass rounded-xl p-4 border border-white/10 card">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-400 text-sm">Node</p>
+                                <p class="text-gray-400 text-sm" data-i18n="stat.node">Node</p>
                                 <p id="stat-nodes" class="text-2xl font-bold">-</p>
                             </div>
                             <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
@@ -207,7 +213,7 @@
                     <div class="glass rounded-xl p-4 border border-white/10 card">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-400 text-sm">Ort. CPU</p>
+                                <p class="text-gray-400 text-sm" data-i18n="stat.avg_cpu">Ort. CPU</p>
                                 <p id="stat-cpu" class="text-2xl font-bold">-</p>
                             </div>
                             <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
@@ -218,7 +224,7 @@
                     <div class="glass rounded-xl p-4 border border-white/10 card">
                         <div class="flex items-center justify-between">
                             <div>
-                                <p class="text-gray-400 text-sm">Denge</p>
+                                <p class="text-gray-400 text-sm" data-i18n="stat.balance">Denge</p>
                                 <p id="stat-balance" class="text-2xl font-bold">-</p>
                             </div>
                             <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
@@ -231,11 +237,11 @@
                 <!-- Charts Row -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                     <div class="glass rounded-xl p-4 border border-white/10">
-                        <h3 class="font-semibold mb-4">VM/CT Dagilimi</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="dash.dist">VM/CT Dağılımı</h3>
                         <div style="position:relative;height:300px"><canvas id="chartDist"></canvas></div>
                     </div>
                     <div class="glass rounded-xl p-4 border border-white/10">
-                        <h3 class="font-semibold mb-4">Kaynak Kullanimi</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="dash.resources">Kaynak Kullanımı</h3>
                         <div style="position:relative;height:300px"><canvas id="chartResource"></canvas></div>
                     </div>
                 </div>
@@ -243,11 +249,11 @@
                 <!-- Node Cards & Recommendations -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2">
-                        <h3 class="font-semibold mb-4">Node Durumlari</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="dash.node_status">Node Durumları</h3>
                         <div id="nodeCards" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                     </div>
                     <div>
-                        <h3 class="font-semibold mb-4">Oneriler</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="dash.recs">Öneriler</h3>
                         <div id="recommendations" class="space-y-3"></div>
                     </div>
                 </div>
@@ -265,7 +271,7 @@
                         </div>
                         <div id="maint-modal-body" class="text-sm"></div>
                         <div class="flex justify-end gap-3 mt-6">
-                            <button onclick="closeMaintModal()" class="px-4 py-2 btn-secondary rounded-lg">Vazgec</button>
+                            <button onclick="closeMaintModal()" class="px-4 py-2 btn-secondary rounded-lg" data-i18n="common.cancel">Vazgeç</button>
                             <button id="maint-modal-ok" class="px-4 py-2 btn-orange rounded-lg font-medium hidden"></button>
                         </div>
                     </div>
@@ -277,20 +283,20 @@
             <div id="page-vms" class="page">
                 <div class="glass rounded-xl border border-white/10 overflow-hidden">
                     <div class="p-4 border-b border-white/10 flex items-center justify-between">
-                        <h3 class="font-semibold">Sanal Makineler</h3>
-                        <input type="text" id="vmSearch" placeholder="Ara..." class="px-3 py-1 bg-white/10 rounded border border-white/10 text-sm" onkeyup="filterVMs()">
+                        <h3 class="font-semibold" data-i18n="nav.vms">Sanal Makineler</h3>
+                        <input type="text" id="vmSearch" data-i18n-placeholder="tbl.search" placeholder="Ara..." class="px-3 py-1 bg-white/10 rounded border border-white/10 text-sm" onkeyup="filterVMs()">
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-white/5">
                                 <tr>
                                     <th class="text-left p-3">ID</th>
-                                    <th class="text-left p-3">Ad</th>
+                                    <th class="text-left p-3" data-i18n="tbl.name">Ad</th>
                                     <th class="text-left p-3">Node</th>
-                                    <th class="text-left p-3">Durum</th>
+                                    <th class="text-left p-3" data-i18n="tbl.status">Durum</th>
                                     <th class="text-left p-3">CPU</th>
                                     <th class="text-left p-3">RAM</th>
-                                    <th class="text-left p-3">Etiketler</th>
+                                    <th class="text-left p-3" data-i18n="tbl.tags">Etiketler</th>
                                 </tr>
                             </thead>
                             <tbody id="vmTable"></tbody>
@@ -303,16 +309,16 @@
             <div id="page-containers" class="page">
                 <div class="glass rounded-xl border border-white/10 overflow-hidden">
                     <div class="p-4 border-b border-white/10">
-                        <h3 class="font-semibold">Container'lar (LXC)</h3>
+                        <h3 class="font-semibold" data-i18n="ct.title">Container'lar (LXC)</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="bg-white/5">
                                 <tr>
                                     <th class="text-left p-3">ID</th>
-                                    <th class="text-left p-3">Ad</th>
+                                    <th class="text-left p-3" data-i18n="tbl.name">Ad</th>
                                     <th class="text-left p-3">Node</th>
-                                    <th class="text-left p-3">Durum</th>
+                                    <th class="text-left p-3" data-i18n="tbl.status">Durum</th>
                                     <th class="text-left p-3">CPU</th>
                                     <th class="text-left p-3">RAM</th>
                                 </tr>
@@ -327,16 +333,16 @@
             <div id="page-balance" class="page">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="glass rounded-xl p-6 border border-white/10">
-                        <h3 class="font-semibold mb-4">En Cok CPU Kullanan</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="bal.top_cpu">En Çok CPU Kullanan</h3>
                         <div id="topCpu" class="space-y-3"></div>
                     </div>
                     <div class="glass rounded-xl p-6 border border-white/10">
-                        <h3 class="font-semibold mb-4">En Cok RAM Kullanan</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="bal.top_mem">En Çok RAM Kullanan</h3>
                         <div id="topMem" class="space-y-3"></div>
                     </div>
                 </div>
                 <div class="glass rounded-xl p-6 border border-white/10 mt-6">
-                    <h3 class="font-semibold mb-4">Dengeleme Onerileri</h3>
+                    <h3 class="font-semibold mb-4" data-i18n="bal.recs">Dengeleme Önerileri</h3>
                     <div id="balanceRecs" class="space-y-3"></div>
                 </div>
             </div>
@@ -345,17 +351,17 @@
             <div id="page-monitor" class="page">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     <div class="glass rounded-xl p-4 border border-white/10">
-                        <h3 class="font-semibold mb-4">CPU Kullanimi</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="mon.cpu">CPU Kullanımı</h3>
                         <canvas id="chartCpuMonitor" height="200"></canvas>
                         <p id="val-cpu" class="text-center text-2xl font-semibold -mt-10">-</p>
                     </div>
                     <div class="glass rounded-xl p-4 border border-white/10">
-                        <h3 class="font-semibold mb-4">RAM Kullanimi</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="mon.mem">RAM Kullanımı</h3>
                         <canvas id="chartMemMonitor" height="200"></canvas>
                         <p id="val-mem" class="text-center text-2xl font-semibold -mt-10">-</p>
                     </div>
                     <div class="glass rounded-xl p-4 border border-white/10">
-                        <h3 class="font-semibold mb-4">Disk Kullanimi</h3>
+                        <h3 class="font-semibold mb-4" data-i18n="mon.disk">Disk Kullanımı</h3>
                         <canvas id="chartDiskMonitor" height="200"></canvas>
                         <p id="val-disk" class="text-center text-2xl font-semibold -mt-10">-</p>
                     </div>
@@ -373,8 +379,8 @@
                                 <i class="fas fa-server"></i>
                             </div>
                             <div>
-                                <h3 class="font-semibold">Proxmox Ayarlari</h3>
-                                <p class="text-xs text-gray-400">Subscription ve repo yonetimi</p>
+                                <h3 class="font-semibold" data-i18n="px.title">Proxmox Ayarları</h3>
+                                <p class="text-xs text-gray-400" data-i18n="px.sub">Subscription ve repo yönetimi</p>
                             </div>
                         </div>
 
@@ -382,21 +388,21 @@
                         <div class="space-y-4">
                             <div class="p-4 bg-white/5 rounded-lg">
                                 <div class="flex items-center justify-between mb-3">
-                                    <span class="text-sm">Repository Durumu</span>
+                                    <span class="text-sm" data-i18n="px.repo">Repository Durumu</span>
                                     <span id="repo-status" class="status-badge status-warning">
-                                        <i class="fas fa-circle text-xs"></i> Kontrol ediliyor...
+                                        <i class="fas fa-circle text-xs"></i> <span data-i18n="px.checking">Kontrol ediliyor...</span>
                                     </span>
                                 </div>
-                                <p class="text-xs text-gray-400">Mevcut repo yapilandirmaniz</p>
+                                <p class="text-xs text-gray-400" data-i18n="px.current">Mevcut repo yapılandırmanız</p>
                             </div>
 
-                            <p class="text-xs text-gray-500">Repo ve subscription degisiklikleri guvenlik nedeniyle panelden kaldirildi. Proxmox arayuzunden yapin.</p>
+                            <p class="text-xs text-gray-500" data-i18n="px.removed">Repo ve subscription değişiklikleri güvenlik nedeniyle panelden kaldırıldı. Proxmox arayüzünden yapın.</p>
                         </div>
 
                         <!-- Operation Log -->
                         <div class="mt-4 p-3 bg-black/30 rounded-lg max-h-32 overflow-y-auto">
-                            <p class="text-xs text-gray-500 mb-1">Islem Logu:</p>
-                            <pre id="proxmox-log" class="text-xs text-gray-400 font-mono">Hazir.</pre>
+                            <p class="text-xs text-gray-500 mb-1" data-i18n="px.oplog">İşlem Logu:</p>
+                            <pre id="proxmox-log" class="text-xs text-gray-400 font-mono"><span data-i18n="px.ready">Hazır.</span></pre>
                         </div>
                     </div>
 
@@ -407,8 +413,8 @@
                                 <i class="fas fa-balance-scale"></i>
                             </div>
                             <div>
-                                <h3 class="font-semibold">Load Balancer Ayarlari</h3>
-                                <p class="text-xs text-gray-400">ClusterBalance parametreleri (/opt/clusterbalance/config.yaml)</p>
+                                <h3 class="font-semibold" data-i18n="lb.title">Load Balancer Ayarları</h3>
+                                <p class="text-xs text-gray-400" data-i18n="lb.sub">ClusterBalance parametreleri (config.yaml)</p>
                             </div>
                         </div>
 
@@ -416,8 +422,8 @@
                             <!-- Enable/Disable -->
                             <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                                 <div>
-                                    <p class="font-medium">Aktif</p>
-                                    <p class="text-xs text-gray-400">Otomatik dengelemeyi etkinlestir</p>
+                                    <p class="font-medium" data-i18n="lb.enabled">Aktif</p>
+                                    <p class="text-xs text-gray-400" data-i18n="lb.enabled_d">Otomatik dengelemeyi etkinleştir</p>
                                 </div>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="cfg-enabled" checked>
@@ -427,48 +433,48 @@
 
                             <!-- Mode -->
                             <div>
-                                <label class="block text-sm text-gray-400 mb-2">Dengeleme Modu</label>
+                                <label class="block text-sm text-gray-400 mb-2" data-i18n="lb.mode">Dengeleme Modu</label>
                                 <select id="cfg-mode" class="w-full px-3 py-2 bg-white/10 rounded-lg border border-white/10 transition">
                                     <option value="memory">Memory (RAM)</option>
                                     <option value="cpu">CPU</option>
-                                    <option value="combined" selected>Birlesik (CPU + RAM)</option>
+                                    <option value="combined" selected data-i18n="lb.mode_combined">Birleşik (CPU + RAM)</option>
                                 </select>
                             </div>
 
                             <!-- Threshold -->
                             <div>
-                                <label class="block text-sm text-gray-400 mb-2">Esik Degeri (%)</label>
+                                <label class="block text-sm text-gray-400 mb-2" data-i18n="lb.threshold">Eşik Değeri (%)</label>
                                 <input type="number" id="cfg-threshold" value="15" min="5" max="50" class="w-full px-3 py-2 bg-white/10 rounded-lg border border-white/10 transition">
-                                <p class="text-xs text-gray-500 mt-1">Node'lar arasi max fark toleransi</p>
+                                <p class="text-xs text-gray-500 mt-1" data-i18n="lb.threshold_d">Node'lar arası izin verilen en büyük fark</p>
                             </div>
 
                             <!-- Max Migrations -->
                             <div>
-                                <label class="block text-sm text-gray-400 mb-2">Max Migration Sayisi</label>
+                                <label class="block text-sm text-gray-400 mb-2" data-i18n="lb.max_mig">Max Migration Sayısı</label>
                                 <input type="number" id="cfg-max-migrations" value="3" min="1" max="10" class="w-full px-3 py-2 bg-white/10 rounded-lg border border-white/10 transition">
                             </div>
 
                             <!-- Migration Type -->
                             <div>
-                                <label class="block text-sm text-gray-400 mb-2">Migration Tipi</label>
+                                <label class="block text-sm text-gray-400 mb-2" data-i18n="lb.mig_type">Migration Tipi</label>
                                 <select id="cfg-migration-type" class="w-full px-3 py-2 bg-white/10 rounded-lg border border-white/10 transition">
-                                    <option value="online">Online (Canli)</option>
+                                    <option value="online" data-i18n="lb.online">Online (Canlı)</option>
                                     <option value="offline">Offline</option>
                                 </select>
                             </div>
 
                             <!-- Exclude Tags -->
                             <div>
-                                <label class="block text-sm text-gray-400 mb-2">Haric Tutulan Etiketler</label>
+                                <label class="block text-sm text-gray-400 mb-2" data-i18n="lb.excl">Hariç Tutulan Etiketler</label>
                                 <input type="text" id="cfg-exclude-tags" placeholder="kritik,pinned,no-migrate" class="w-full px-3 py-2 bg-white/10 rounded-lg border border-white/10 transition">
-                                <p class="text-xs text-gray-500 mt-1">Virgul ile ayirin</p>
+                                <p class="text-xs text-gray-500 mt-1" data-i18n="lb.excl_d">Virgül ile ayırın</p>
                             </div>
 
                             <!-- Dry Run Toggle -->
                             <div class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
                                 <div>
                                     <p class="font-medium">Dry Run</p>
-                                    <p class="text-xs text-gray-400">Test modu (gercek migration yapmaz)</p>
+                                    <p class="text-xs text-gray-400" data-i18n="lb.dry_d">Test modu (gerçek migration yapmaz)</p>
                                 </div>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="cfg-dryrun">
@@ -479,10 +485,10 @@
                             <!-- Action Buttons -->
                             <div class="grid grid-cols-2 gap-3 pt-4">
                                 <button onclick="saveConfig()" class="px-4 py-3 btn-orange rounded-lg font-medium transition flex items-center justify-center gap-2">
-                                    <i class="fas fa-save"></i> Kaydet
+                                    <i class="fas fa-save"></i> <span data-i18n="lb.save">Kaydet</span>
                                 </button>
                                 <button onclick="runBalance()" class="px-4 py-3 btn-secondary rounded-lg font-medium transition flex items-center justify-center gap-2">
-                                    <i class="fas fa-play"></i> Calistir
+                                    <i class="fas fa-play"></i> <span data-i18n="lb.run">Çalıştır</span>
                                 </button>
                             </div>
                         </div>
@@ -494,65 +500,65 @@
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center"><i class="fas fa-clock-rotate-left"></i></div>
                                 <div>
-                                    <h3 class="font-semibold">Tasima Gecmisi</h3>
-                                    <p class="text-xs text-gray-400">Hangi VM, nereden nereye, neden tasindi ve sonuc ne oldu</p>
+                                    <h3 class="font-semibold" data-i18n="h.title">Taşıma Geçmişi</h3>
+                                    <p class="text-xs text-gray-400" data-i18n="h.sub">Hangi VM, nereden nereye, neden taşındı ve sonuç ne oldu</p>
                                 </div>
                             </div>
                             <div class="flex flex-wrap items-center gap-2 text-sm">
                                 <select id="hist-hours" onchange="loadHistory()" class="px-2 py-1.5 rounded-lg border">
-                                    <option value="24">Son 24 saat</option>
-                                    <option value="168" selected>Son 7 gun</option>
-                                    <option value="720">Son 30 gun</option>
-                                    <option value="2160">Son 90 gun</option>
+                                    <option value="24" data-i18n="h.24h">Son 24 saat</option>
+                                    <option value="168" selected data-i18n="h.7d">Son 7 gün</option>
+                                    <option value="720" data-i18n="h.30d">Son 30 gün</option>
+                                    <option value="2160" data-i18n="h.90d">Son 90 gün</option>
                                 </select>
                                 <select id="hist-filter" onchange="renderHistory()" class="px-2 py-1.5 rounded-lg border">
-                                    <option value="all">Tumu</option>
-                                    <option value="real">Sadece gercek</option>
-                                    <option value="test">Sadece test</option>
-                                    <option value="failed">Sadece basarisiz</option>
-                                    <option value="pingpong">Ileri-geri tasinanlar</option>
+                                    <option value="all" data-i18n="h.f_all">Tümü</option>
+                                    <option value="real" data-i18n="h.f_real">Sadece gerçek</option>
+                                    <option value="test" data-i18n="h.f_test">Sadece test</option>
+                                    <option value="failed" data-i18n="h.f_failed">Sadece başarısız</option>
+                                    <option value="pingpong" data-i18n="h.f_pp">İleri-geri taşınanlar</option>
                                 </select>
-                                <button onclick="loadHistory(true)" title="Yenile" class="px-3 py-1.5 btn-secondary rounded-lg"><i class="fas fa-sync-alt"></i></button>
-                                <button onclick="toggleHistInfo()" title="Bu tablo nasil okunur?" class="px-3 py-1.5 btn-secondary rounded-lg"><i class="fas fa-circle-info"></i> Bilgi</button>
+                                <button onclick="loadHistory(true)" data-i18n-title="common.refresh" title="Yenile" class="px-3 py-1.5 btn-secondary rounded-lg"><i class="fas fa-sync-alt"></i></button>
+                                <button onclick="toggleHistInfo()" data-i18n-title="h.how_q" title="Bu tablo nasıl okunur?" class="px-3 py-1.5 btn-secondary rounded-lg"><i class="fas fa-circle-info"></i> <span data-i18n="common.info">Bilgi</span></button>
                             </div>
                         </div>
 
                         <!-- Bilgi karti -->
                         <div id="hist-info" class="hidden p-4 rounded-lg mb-4 text-xs border" style="background:var(--surface-2);border-color:var(--line)">
-                            <p class="text-sm text-gray-300 font-medium mb-3"><i class="fas fa-circle-info text-gray-400"></i> Tasima gecmisi nasil okunur?</p>
+                            <p class="text-sm text-gray-300 font-medium mb-3"><i class="fas fa-circle-info text-gray-400"></i> <span data-i18n="h.info_title">Taşıma geçmişi nasıl okunur?</span></p>
                             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-gray-300">
                                 <div>
-                                    <p class="font-semibold text-gray-100 mb-1">Nasil calisir?</p>
-                                    <p>Dengeleyici 15 dakikada bir node'larin yukunu olcer ve bir <b>denge skoru</b> hesaplar (node'lar arasi fark; dusuk = dengeli).</p>
-                                    <p class="mt-1">Skor <b>esigi</b> (varsayilan 15) asarsa, dengeyi en az 5 puan iyilestiren tasimalar planlanir (calisma basina en fazla 3).</p>
-                                    <p class="mt-1">Gercek tasimalar yalnizca <b>20:00–07:00</b> arasinda yapilir.</p>
+                                    <p class="font-semibold text-gray-100 mb-1" data-i18n="h.i_how">Nasıl çalışır?</p>
+                                    <p data-i18n-html="h.i_how1">Dengeleyici 15 dakikada bir node'ların yükünü ölçer ve bir <b>denge skoru</b> hesaplar (node'lar arası fark; düşük = dengeli).</p>
+                                    <p class="mt-1" data-i18n-html="h.i_how2">Skor <b>eşiği</b> (varsayılan 15) aşarsa, dengeyi en az 5 puan iyileştiren taşımalar planlanır (çalışma başına en fazla 3).</p>
+                                    <p class="mt-1" data-i18n-html="h.i_how3">Gerçek taşımalar yalnızca <b>taşıma penceresi</b> içinde yapılır (ör. 20:00–07:00).</p>
                                 </div>
                                 <div>
-                                    <p class="font-semibold text-gray-100 mb-1">Sonuc sutunu</p>
-                                    <p><span class="dot ok"></span><b>Basarili</b> — VM hedefte calisiyor; yaninda suresi</p>
-                                    <p><span class="dot bad"></span><b>Basarisiz / Zaman asimi</b> — altinda hata nedeni</p>
-                                    <p><span class="dot warn"></span><b>Ertelendi</b> — planlandi ama tasima penceresi disindaydi</p>
-                                    <p><span class="dot" style="background:var(--faint)"></span><b>Test</b> — Dry Run acikken; sadece planlandi, tasinmadi</p>
-                                    <p><span class="dot" style="background:var(--faint)"></span><b>Baslatildi</b> — eski motor; sonucu takip etmiyordu</p>
+                                    <p class="font-semibold text-gray-100 mb-1" data-i18n="h.i_res">Sonuç sütunu</p>
+                                    <p><span class="dot ok"></span><span data-i18n-html="h.i_ok"><b>Başarılı</b> — VM hedefte çalışıyor; yanında süresi</span></p>
+                                    <p><span class="dot bad"></span><span data-i18n-html="h.i_bad"><b>Başarısız / Zaman aşımı</b> — altında hata nedeni</span></p>
+                                    <p><span class="dot warn"></span><span data-i18n-html="h.i_def"><b>Ertelendi</b> — planlandı ama taşıma penceresi dışındaydı</span></p>
+                                    <p><span class="dot" style="background:var(--faint)"></span><span data-i18n-html="h.i_test"><b>Test</b> — Dry Run açıkken; sadece planlandı, taşınmadı</span></p>
+                                    <p><span class="dot" style="background:var(--faint)"></span><span data-i18n-html="h.i_legacy"><b>Başlatıldı</b> — eski motor; sonucu takip etmiyordu</span></p>
                                 </div>
                                 <div>
-                                    <p class="font-semibold text-gray-100 mb-1">Diger alanlar</p>
-                                    <p><b>Neden</b> — tasima oncesi → sonrasi denge skoru ve esik. Eski motor gerekce yazmadigi icin eski kayitlarda bos.</p>
-                                    <p class="mt-1"><span class="status-badge status-warning" style="padding:1px 6px;font-size:10px">ileri-geri</span> — VM 24 saat icinde geri tasinmis ya da donemde 3+ kez tasinmis; kararsiz dengelemeye isaret eder.</p>
-                                    <p class="mt-1"><b>Hariç tutulanlar</b> — "kritik" etiketli, USB/PCI baglantili, yerel diskli ve HA grubu izin vermeyen VM'ler tasinmaz; nedenleri "Son calisma" kutusunda listelenir.</p>
+                                    <p class="font-semibold text-gray-100 mb-1" data-i18n="h.i_other">Diğer alanlar</p>
+                                    <p data-i18n-html="h.i_reason"><b>Neden</b> — taşıma öncesi → sonrası denge skoru ve eşik. Eski motor gerekçe yazmadığı için eski kayıtlarda boş.</p>
+                                    <p class="mt-1"><span class="status-badge status-warning" style="padding:1px 6px;font-size:10px" data-i18n="h.pp">ileri-geri</span> <span data-i18n="h.i_pp">— VM 24 saat içinde geri taşınmış ya da dönemde 3+ kez taşınmış; kararsız dengelemeye işaret eder.</span></p>
+                                    <p class="mt-1" data-i18n-html="h.i_excl"><b>Hariç tutulanlar</b> — &quot;kritik&quot; etiketli, USB/PCI bağlantılı, yerel diskli ve HA grubu izin vermeyen VM'ler taşınmaz; nedenleri &quot;Son çalışma&quot; kutusunda listelenir.</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Son calisma karari -->
-                        <div id="hist-last" class="p-3 rounded-lg mb-4 text-sm" style="background:var(--surface-2)">Yukleniyor...</div>
+                        <div id="hist-last" class="p-3 rounded-lg mb-4 text-sm" style="background:var(--surface-2)"><span data-i18n="common.loading">Yükleniyor...</span></div>
 
                         <!-- Ozet -->
                         <div id="hist-summary" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4"></div>
 
                         <!-- Denge skoru grafigi -->
                         <div class="mb-4">
-                            <p class="text-xs text-gray-400 mb-2">Denge skoru (dusuk = dengeli). Kesikli cizgi: esik — asildiginda tasima planlanir.</p>
+                            <p class="text-xs text-gray-400 mb-2" data-i18n="h.chart_cap">Denge skoru (düşük = dengeli). Kesikli çizgi: eşik — aşıldığında taşıma planlanır.</p>
                             <div style="height:160px"><canvas id="chartHistory"></canvas></div>
                         </div>
 
@@ -561,15 +567,15 @@
                             <table class="w-full text-sm">
                                 <thead class="text-xs text-gray-400 sticky top-0 z-10" style="background:var(--surface-2)">
                                     <tr>
-                                        <th class="text-left p-2.5 font-medium">Zaman</th>
+                                        <th class="text-left p-2.5 font-medium" data-i18n="h.th_time">Zaman</th>
                                         <th class="text-left p-2.5 font-medium">VM</th>
-                                        <th class="text-left p-2.5 font-medium">Tasima</th>
-                                        <th class="text-left p-2.5 font-medium">Neden</th>
-                                        <th class="text-left p-2.5 font-medium">Mod</th>
-                                        <th class="text-left p-2.5 font-medium">Sonuc</th>
+                                        <th class="text-left p-2.5 font-medium" data-i18n="h.th_move">Taşıma</th>
+                                        <th class="text-left p-2.5 font-medium" data-i18n="h.th_reason">Neden</th>
+                                        <th class="text-left p-2.5 font-medium" data-i18n="h.th_mode">Mod</th>
+                                        <th class="text-left p-2.5 font-medium" data-i18n="h.th_result">Sonuç</th>
                                     </tr>
                                 </thead>
-                                <tbody id="hist-body"><tr><td colspan="6" class="p-4 text-center text-gray-500">Yukleniyor...</td></tr></tbody>
+                                <tbody id="hist-body"><tr><td colspan="6" class="p-4 text-center text-gray-500"><span data-i18n="common.loading">Yükleniyor...</span></td></tr></tbody>
                             </table>
                         </div>
                         <div class="flex items-center justify-between mt-2 text-xs text-gray-500">
@@ -586,16 +592,16 @@
                                 <i class="fas fa-terminal"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-semibold">Ham Log</h3>
-                                    <p class="text-xs text-gray-400">Son calistirma ciktisi</p>
+                                    <h3 class="font-semibold" data-i18n="log.title">Ham Log</h3>
+                                    <p class="text-xs text-gray-400" data-i18n="log.sub">Son çalıştırma çıktısı</p>
                                 </div>
                             </div>
                             <button onclick="loadBalanceLog()" class="px-3 py-1 bg-white/10 rounded text-sm hover:bg-white/20 transition">
-                                <i class="fas fa-refresh"></i> Yenile
+                                <i class="fas fa-refresh"></i> <span data-i18n="common.refresh">Yenile</span>
                             </button>
                         </div>
                         <div class="p-4 bg-black/40 rounded-lg max-h-64 overflow-y-auto font-mono">
-                            <pre id="balance-log" class="text-xs text-gray-300 whitespace-pre-wrap">Log yukleniyor...</pre>
+                            <pre id="balance-log" class="text-xs text-gray-300 whitespace-pre-wrap"><span data-i18n="log.loading">Log yükleniyor...</span></pre>
                         </div>
                     </div>
                 </div>
@@ -604,6 +610,508 @@
     </main>
 
     <script>
+
+        // ============ i18n ============
+        // UI texts. To add a language: copy the 'en' block, translate it and add a button in the header.
+        const I18N = {
+            tr: {
+                "nav.dashboard": "Dashboard",
+                "nav.nodes": "Node'lar",
+                "nav.vms": "Sanal Makineler",
+                "nav.containers": "Container'lar",
+                "nav.balance": "Dengeleme",
+                "nav.monitor": "İzleme",
+                "nav.settings": "Ayarlar",
+                "common.refresh": "Yenile",
+                "common.loading": "Yükleniyor...",
+                "common.info": "Bilgi",
+                "common.cancel": "Vazgeç",
+                "common.ok": "Tamam",
+                "common.error": "Hata: {e}",
+                "hdr.last": "Son: {t}",
+                "hdr.lang": "Dil",
+                "hc.title": "Sistem Sağlığı",
+                "hc.legend_q": "Kartlar neye göre renk değiştirir?",
+                "hc.cluster": "Cluster / Quorum",
+                "hc.storage": "Depolama Bağlantıları",
+                "hc.ha": "HA Servisleri",
+                "hc.backups": "Yedekler (PBS)",
+                "lg.cluster_ok": "Quorum var ve tüm node'lar çevrimiçi",
+                "lg.cluster_bad": "Quorum kaybedildi veya bir node erişilemiyor",
+                "lg.storage_ok": "Paylaşımlı dizin depolamaları (NFS vb.) her node'da bağlı",
+                "lg.storage_bad": "Herhangi bir node'da disk bağlı değil — VM'ler o node'a geçemez",
+                "lg.ha_ok": "Tüm servisler olması gereken durumda",
+                "lg.ha_bad": "Bir servis error / fence / recovery durumunda ya da çalışması gerekirken çalışmıyor",
+                "lg.bk_ok": "Tüm VM'ler son 26 saatte yedeklendi",
+                "lg.bk_warn": "Son yedek 26 saatten eski",
+                "lg.bk_bad": "Son yedek 50 saatten eski veya hiç yedek yok",
+                "lg.footer": "Son 24 saatte başarısız bir Proxmox görevi (migration, yedek vb.) olursa kartların altında ayrı bir kırmızı kutu açılır. Veriler 30 saniyede bir yenilenir; yedek bilgisi 5 dakikada bir güncellenir.",
+                "hc.failed_tasks": "Son 24 saatte başarısız görevler",
+                "hc.healthy": "Sağlıklı",
+                "hc.attention": "Dikkat",
+                "hc.problem": "Sorun",
+                "hc.last_check": "Son kontrol: {t}",
+                "hc.quorum": "Quorum: <b>{v}</b>",
+                "hc.yes": "Var",
+                "hc.no": "YOK",
+                "hc.uptime": "uptime {v}",
+                "hc.unreachable": "erişilemiyor",
+                "hc.not_mounted": "BAĞLI DEĞİL",
+                "hc.no_shared": "Paylaşımlı dizin depolaması yok",
+                "hc.ha_total": "{n} servis izleniyor",
+                "hc.ha_state": "durum: {s} (istenen: {r})",
+                "hc.bk_summary": "{ok}/{total} VM son 26 saatte yedeklendi",
+                "hc.bk_last": "son: {t} ({h} sa)",
+                "hc.bk_none": "hiç yedek yok",
+                "hc.more": "+{n} daha",
+                "fmt.uptime": "{d}g {h}s",
+                "stat.node": "Node",
+                "stat.avg_cpu": "Ort. CPU",
+                "stat.balance": "Denge",
+                "stat.balanced": "Dengeli",
+                "dash.dist": "VM/CT Dağılımı",
+                "dash.resources": "Kaynak Kullanımı",
+                "dash.node_status": "Node Durumları",
+                "dash.recs": "Öneriler",
+                "node.cores": "CPU ({n} çekirdek)",
+                "tbl.search": "Ara...",
+                "tbl.name": "Ad",
+                "tbl.status": "Durum",
+                "tbl.tags": "Etiketler",
+                "ct.title": "Container'lar (LXC)",
+                "bal.top_cpu": "En Çok CPU Kullanan",
+                "bal.top_mem": "En Çok RAM Kullanan",
+                "bal.recs": "Dengeleme Önerileri",
+                "mon.cpu": "CPU Kullanımı",
+                "mon.mem": "RAM Kullanımı",
+                "mon.disk": "Disk Kullanımı",
+                "mon.used": "Kullanılan",
+                "mon.free": "Boş",
+                "px.title": "Proxmox Ayarları",
+                "px.sub": "Subscription ve repo yönetimi",
+                "px.repo": "Repository Durumu",
+                "px.checking": "Kontrol ediliyor...",
+                "px.current": "Mevcut repo yapılandırmanız",
+                "px.removed": "Repo ve subscription değişiklikleri güvenlik nedeniyle panelden kaldırıldı. Proxmox arayüzünden yapın.",
+                "px.oplog": "İşlem Logu:",
+                "px.ready": "Hazır.",
+                "px.unknown": "Belirsiz",
+                "lb.title": "Load Balancer Ayarları",
+                "lb.sub": "ClusterBalance parametreleri (config.yaml)",
+                "lb.enabled": "Aktif",
+                "lb.enabled_d": "Otomatik dengelemeyi etkinleştir",
+                "lb.mode": "Dengeleme Modu",
+                "lb.mode_combined": "Birleşik (CPU + RAM)",
+                "lb.threshold": "Eşik Değeri (%)",
+                "lb.threshold_d": "Node'lar arası izin verilen en büyük fark",
+                "lb.max_mig": "Max Migration Sayısı",
+                "lb.mig_type": "Migration Tipi",
+                "lb.online": "Online (Canlı)",
+                "lb.excl": "Hariç Tutulan Etiketler",
+                "lb.excl_d": "Virgül ile ayırın",
+                "lb.dry_d": "Test modu (gerçek migration yapmaz)",
+                "lb.save": "Kaydet",
+                "lb.run": "Çalıştır",
+                "lb.saved": "Ayarlar kaydedildi!",
+                "lb.running": "Dengeleyici çalışıyor...",
+                "lb.dry_done": "Dry-run tamamlandı",
+                "lb.no_log": "Log bulunamadı",
+                "h.title": "Taşıma Geçmişi",
+                "h.sub": "Hangi VM, nereden nereye, neden taşındı ve sonuç ne oldu",
+                "h.24h": "Son 24 saat",
+                "h.7d": "Son 7 gün",
+                "h.30d": "Son 30 gün",
+                "h.90d": "Son 90 gün",
+                "h.f_all": "Tümü",
+                "h.f_real": "Sadece gerçek",
+                "h.f_test": "Sadece test",
+                "h.f_failed": "Sadece başarısız",
+                "h.f_pp": "İleri-geri taşınanlar",
+                "h.how_q": "Bu tablo nasıl okunur?",
+                "h.info_title": "Taşıma geçmişi nasıl okunur?",
+                "h.i_how": "Nasıl çalışır?",
+                "h.i_how1": "Dengeleyici 15 dakikada bir node'ların yükünü ölçer ve bir <b>denge skoru</b> hesaplar (node'lar arası fark; düşük = dengeli).",
+                "h.i_how2": "Skor <b>eşiği</b> (varsayılan 15) aşarsa, dengeyi en az 5 puan iyileştiren taşımalar planlanır (çalışma başına en fazla 3).",
+                "h.i_how3": "Gerçek taşımalar yalnızca <b>taşıma penceresi</b> içinde yapılır (ör. 20:00–07:00).",
+                "h.i_res": "Sonuç sütunu",
+                "h.i_ok": "<b>Başarılı</b> — VM hedefte çalışıyor; yanında süresi",
+                "h.i_bad": "<b>Başarısız / Zaman aşımı</b> — altında hata nedeni",
+                "h.i_def": "<b>Ertelendi</b> — planlandı ama taşıma penceresi dışındaydı",
+                "h.i_test": "<b>Test</b> — Dry Run açıkken; sadece planlandı, taşınmadı",
+                "h.i_legacy": "<b>Başlatıldı</b> — eski motor; sonucu takip etmiyordu",
+                "h.i_other": "Diğer alanlar",
+                "h.i_reason": "<b>Neden</b> — taşıma öncesi → sonrası denge skoru ve eşik. Eski motor gerekçe yazmadığı için eski kayıtlarda boş.",
+                "h.i_pp": "— VM 24 saat içinde geri taşınmış ya da dönemde 3+ kez taşınmış; kararsız dengelemeye işaret eder.",
+                "h.i_excl": "<b>Hariç tutulanlar</b> — \"kritik\" etiketli, USB/PCI bağlantılı, yerel diskli ve HA grubu izin vermeyen VM'ler taşınmaz; nedenleri \"Son çalışma\" kutusunda listelenir.",
+                "h.chart_cap": "Denge skoru (düşük = dengeli). Kesikli çizgi: eşik — aşıldığında taşıma planlanır.",
+                "h.th_time": "Zaman",
+                "h.th_move": "Taşıma",
+                "h.th_reason": "Neden",
+                "h.th_mode": "Mod",
+                "h.th_result": "Sonuç",
+                "h.read_err": "Geçmiş okunamadı",
+                "h.no_runs": "Bu dönemde çalışma kaydı yok.",
+                "h.planned": "{n} taşıma planlandı",
+                "h.test_mode": " (test modu)",
+                "h.executed": "{n} uygulandı",
+                "h.n_failed": "{n} başarısız",
+                "h.no_fit": "eşik aşıldı ama dengeyi iyileştiren uygun taşıma bulunamadı",
+                "h.balanced": "cluster dengeli, taşıma gerekmedi",
+                "h.last_run": "Son çalışma: {t}",
+                "h.score": "Denge skoru <b>{b}</b> / eşik {t}",
+                "h.running": "şu an yeni çalışma sürüyor",
+                "h.rejected": "{n} VM bazı node'lara taşınamıyor — nedenleri",
+                "h.s_runs": "Çalışma",
+                "h.s_real": "Gerçek taşıma",
+                "h.s_ok": "Başarılı",
+                "h.s_bad": "Başarısız",
+                "h.s_test": "Test / Ertelenen",
+                "h.s_pp": "İleri-geri VM",
+                "h.ds_score": "Denge skoru",
+                "h.ds_thr": "Eşik",
+                "h.r_balance": "Denge skoru {a} → {b} <span class=\"text-gray-500\">(eşik {t})</span>",
+                "h.r_maint": "Bakım modu: node boşaltılıyor",
+                "h.r_return": "Bakım sonrası eski node'una geri dönüş",
+                "h.r_legacy": "Eski motor — gerekçe kaydedilmemiş",
+                "h.r_score": " (skor {s})",
+                "h.pp": "ileri-geri",
+                "h.pp_t": "24 saat içinde geri taşındı veya 3+ kez taşındı",
+                "h.real": "Gerçek",
+                "h.empty": "Bu dönemde kayıt yok",
+                "h.count_part": "{n} kayıttan ilk {m} gösteriliyor",
+                "h.count": "{n} kayıt",
+                "h.log": "Log: {s} MB",
+                "h.not_rotated": " (döndürülmüyor)",
+                "res.basarili": "Başarılı",
+                "res.basarisiz": "Başarısız",
+                "res.zaman asimi": "Zaman aşımı",
+                "res.ertelendi": "Ertelendi (pencere dışı)",
+                "res.planlandi": "Planlandı, yapılmadı",
+                "res.test": "Test (taşınmadı)",
+                "res.baslatildi": "Başlatıldı (sonuç izlenmedi)",
+                "res.devam ediyor": "Devam ediyor",
+                "err.parse": "Proxmox yanıtı okunamadı (eski motor) — taşıma başlamış olabilir",
+                "err.locked": "VM o sırada yedekleniyordu (kilitli)",
+                "err.timeout": "Hedefte çalışır hale gelmedi (zaman aşımı)",
+                "err.start": "Taşıma başlatılamadı",
+                "fmt.min_sec": "{m} dk {s} sn",
+                "fmt.sec": "{s} sn",
+                "log.title": "Ham Log",
+                "log.sub": "Son çalıştırma çıktısı",
+                "log.loading": "Log yükleniyor...",
+                "m.in": "Bakımda",
+                "m.exit_btn": "Bakımdan çıkar",
+                "m.returning": "VM'ler geri dönüyor",
+                "m.one_node": "Aynı anda tek node bakımda olabilir",
+                "m.enter_btn": "Bakıma al",
+                "m.busy": "dengeleyici çalışıyor",
+                "m.banner": "{n} bakım modunda",
+                "m.empty": "Node boş — güvenle yeniden başlatılabilir / güncellenebilir.",
+                "m.left": "Üzerinde hâlâ {n} çalışan VM var.",
+                "m.drained": "Boşaltılan: {n} VM.",
+                "m.dry_banner": "Dry Run açık: taşımalar sadece test ediliyor!",
+                "m.cant": "taşınamıyor: {r}",
+                "m.waiting": "taşınmayı bekliyor",
+                "m.returning_line": "{node}: {n} VM eski yerine geri taşınıyor",
+                "m.q_enter": "{n} bakıma alınsın mı?",
+                "m.preparing": "Önizleme hazırlanıyor — cluster verisi toplanıyor (yaklaşık 40 sn)...",
+                "m.explain": "Onaylarsanız dengeleyici hemen çalışır ve {n} üzerindeki VM'leri <b>canlı (kesintisiz)</b> olarak aşağıdaki node'lara taşır. Taşıma penceresini beklemez. Taşınamayan VM'ler <b>kapatılmaz</b>, yerinde kalır.",
+                "m.to_move": "Taşınacak VM'ler ({n})",
+                "m.none_to_move": "Taşınacak çalışan VM yok.",
+                "m.unmovable": "Taşınamayacak VM'ler ({c}) — {n} üzerinde çalışmaya devam eder",
+                "m.after": "Kalan node'ların durumu (taşıma sonrası tahmini RAM)",
+                "m.overfull": "Uyarı: kalan node'ların RAM kullanımı sınırın üzerine çıkıyor.",
+                "m.panel_note": "Not: Bu panel {n} üzerinde çalışıyor; node yeniden başlatılırken panel kısa süre erişilemez.",
+                "m.dry_note": "Dry Run açık: VM'ler gerçekte taşınmayacak, sadece test edilecek.",
+                "m.confirm_enter": "Onayla — {n} bakıma al",
+                "m.q_exit": "{n} bakımdan çıkarılsın mı?",
+                "m.exit_list": "Bakım sırasında taşınan {c} VM, <b>{n}</b> node'una canlı olarak geri taşınacak:",
+                "m.exit_none": "Geri taşınacak VM kaydı yok; node sadece bakımdan çıkarılacak.",
+                "m.confirm_exit": "Onayla — bakımdan çıkar"
+            },
+            en: {
+                "nav.dashboard": "Dashboard",
+                "nav.nodes": "Nodes",
+                "nav.vms": "Virtual Machines",
+                "nav.containers": "Containers",
+                "nav.balance": "Balancing",
+                "nav.monitor": "Monitoring",
+                "nav.settings": "Settings",
+                "common.refresh": "Refresh",
+                "common.loading": "Loading...",
+                "common.info": "Info",
+                "common.cancel": "Cancel",
+                "common.ok": "OK",
+                "common.error": "Error: {e}",
+                "hdr.last": "Updated: {t}",
+                "hdr.lang": "Language",
+                "hc.title": "System Health",
+                "hc.legend_q": "What do the card colours mean?",
+                "hc.cluster": "Cluster / Quorum",
+                "hc.storage": "Storage Mounts",
+                "hc.ha": "HA Services",
+                "hc.backups": "Backups (PBS)",
+                "lg.cluster_ok": "Quorum present and all nodes online",
+                "lg.cluster_bad": "Quorum lost or a node is unreachable",
+                "lg.storage_ok": "Shared directory storages (NFS etc.) are mounted on every node",
+                "lg.storage_bad": "A disk is not mounted on some node — VMs cannot move to that node",
+                "lg.ha_ok": "All services are in their requested state",
+                "lg.ha_bad": "A service is in error / fence / recovery, or not running when it should be",
+                "lg.bk_ok": "Every VM was backed up in the last 26 hours",
+                "lg.bk_warn": "Latest backup is older than 26 hours",
+                "lg.bk_bad": "Latest backup is older than 50 hours, or there is none",
+                "lg.footer": "If a Proxmox task (migration, backup, ...) failed in the last 24 hours, a separate red box appears below the cards. Data refreshes every 30 seconds; backup information every 5 minutes.",
+                "hc.failed_tasks": "Failed tasks in the last 24 hours",
+                "hc.healthy": "Healthy",
+                "hc.attention": "Attention",
+                "hc.problem": "Problem",
+                "hc.last_check": "Last check: {t}",
+                "hc.quorum": "Quorum: <b>{v}</b>",
+                "hc.yes": "Yes",
+                "hc.no": "NO",
+                "hc.uptime": "uptime {v}",
+                "hc.unreachable": "unreachable",
+                "hc.not_mounted": "NOT MOUNTED",
+                "hc.no_shared": "No shared directory storage",
+                "hc.ha_total": "{n} services monitored",
+                "hc.ha_state": "state: {s} (requested: {r})",
+                "hc.bk_summary": "{ok}/{total} VMs backed up in the last 26 hours",
+                "hc.bk_last": "last: {t} ({h} h ago)",
+                "hc.bk_none": "no backups",
+                "hc.more": "+{n} more",
+                "fmt.uptime": "{d}d {h}h",
+                "stat.node": "Nodes",
+                "stat.avg_cpu": "Avg. CPU",
+                "stat.balance": "Balance",
+                "stat.balanced": "Balanced",
+                "dash.dist": "VM/CT Distribution",
+                "dash.resources": "Resource Usage",
+                "dash.node_status": "Node Status",
+                "dash.recs": "Recommendations",
+                "node.cores": "CPU ({n} cores)",
+                "tbl.search": "Search...",
+                "tbl.name": "Name",
+                "tbl.status": "Status",
+                "tbl.tags": "Tags",
+                "ct.title": "Containers (LXC)",
+                "bal.top_cpu": "Top CPU Consumers",
+                "bal.top_mem": "Top RAM Consumers",
+                "bal.recs": "Balancing Recommendations",
+                "mon.cpu": "CPU Usage",
+                "mon.mem": "RAM Usage",
+                "mon.disk": "Disk Usage",
+                "mon.used": "Used",
+                "mon.free": "Free",
+                "px.title": "Proxmox Settings",
+                "px.sub": "Subscription and repositories",
+                "px.repo": "Repository Status",
+                "px.checking": "Checking...",
+                "px.current": "Your current repository configuration",
+                "px.removed": "Repository and subscription changes were removed from the dashboard for security. Use the Proxmox UI.",
+                "px.oplog": "Operation log:",
+                "px.ready": "Ready.",
+                "px.unknown": "Unknown",
+                "lb.title": "Load Balancer Settings",
+                "lb.sub": "ClusterBalance parameters (config.yaml)",
+                "lb.enabled": "Enabled",
+                "lb.enabled_d": "Enable automatic balancing",
+                "lb.mode": "Balancing Mode",
+                "lb.mode_combined": "Combined (CPU + RAM)",
+                "lb.threshold": "Threshold (%)",
+                "lb.threshold_d": "Maximum tolerated difference between nodes",
+                "lb.max_mig": "Max Migrations per Run",
+                "lb.mig_type": "Migration Type",
+                "lb.online": "Online (live)",
+                "lb.excl": "Excluded Tags",
+                "lb.excl_d": "Comma separated",
+                "lb.dry_d": "Test mode (no real migrations)",
+                "lb.save": "Save",
+                "lb.run": "Run",
+                "lb.saved": "Settings saved!",
+                "lb.running": "Balancer running...",
+                "lb.dry_done": "Dry run finished",
+                "lb.no_log": "No log found",
+                "h.title": "Migration History",
+                "h.sub": "Which VM moved where, why, and what happened",
+                "h.24h": "Last 24 hours",
+                "h.7d": "Last 7 days",
+                "h.30d": "Last 30 days",
+                "h.90d": "Last 90 days",
+                "h.f_all": "All",
+                "h.f_real": "Real only",
+                "h.f_test": "Test only",
+                "h.f_failed": "Failed only",
+                "h.f_pp": "Ping-pong VMs",
+                "h.how_q": "How to read this table?",
+                "h.info_title": "How to read the migration history",
+                "h.i_how": "How it works",
+                "h.i_how1": "Every 15 minutes the balancer measures node load and computes a <b>balance score</b> (spread between nodes; lower = more balanced).",
+                "h.i_how2": "If the score exceeds the <b>threshold</b> (default 15), it plans moves that improve it by at least 5 points (at most 3 per run).",
+                "h.i_how3": "Real migrations only happen inside the <b>migration window</b> (e.g. 20:00–07:00).",
+                "h.i_res": "Result column",
+                "h.i_ok": "<b>Succeeded</b> — VM is running on the target; duration shown next to it",
+                "h.i_bad": "<b>Failed / Timed out</b> — the error is shown below",
+                "h.i_def": "<b>Deferred</b> — planned, but outside the migration window",
+                "h.i_test": "<b>Test</b> — Dry Run was on; planned only, not moved",
+                "h.i_legacy": "<b>Started</b> — old engine; result was not tracked",
+                "h.i_other": "Other fields",
+                "h.i_reason": "<b>Reason</b> — balance score before → after the move, and the threshold. Empty for old-engine records, which did not log a reason.",
+                "h.i_pp": "— the VM was moved back within 24 hours or moved 3+ times in the period; a sign of unstable balancing.",
+                "h.i_excl": "<b>Exclusions</b> — VMs tagged \"kritik\", with USB/PCI passthrough, local disks, or an HA group that forbids the target are never moved; reasons are listed in the \"Last run\" box.",
+                "h.chart_cap": "Balance score (lower = more balanced). Dashed line: threshold — moves are planned when it is exceeded.",
+                "h.th_time": "Time",
+                "h.th_move": "Move",
+                "h.th_reason": "Reason",
+                "h.th_mode": "Mode",
+                "h.th_result": "Result",
+                "h.read_err": "Could not read history",
+                "h.no_runs": "No runs in this period.",
+                "h.planned": "{n} moves planned",
+                "h.test_mode": " (test mode)",
+                "h.executed": "{n} executed",
+                "h.n_failed": "{n} failed",
+                "h.no_fit": "threshold exceeded, but no move would improve the balance",
+                "h.balanced": "cluster balanced, nothing to do",
+                "h.last_run": "Last run: {t}",
+                "h.score": "Balance score <b>{b}</b> / threshold {t}",
+                "h.running": "a new run is in progress",
+                "h.rejected": "{n} VMs cannot move to some nodes — why",
+                "h.s_runs": "Runs",
+                "h.s_real": "Real moves",
+                "h.s_ok": "Succeeded",
+                "h.s_bad": "Failed",
+                "h.s_test": "Test / Deferred",
+                "h.s_pp": "Ping-pong VMs",
+                "h.ds_score": "Balance score",
+                "h.ds_thr": "Threshold",
+                "h.r_balance": "Balance score {a} → {b} <span class=\"text-gray-500\">(threshold {t})</span>",
+                "h.r_maint": "Maintenance mode: draining node",
+                "h.r_return": "Returning to its node after maintenance",
+                "h.r_legacy": "Old engine — no reason logged",
+                "h.r_score": " (score {s})",
+                "h.pp": "ping-pong",
+                "h.pp_t": "Moved back within 24 hours or moved 3+ times",
+                "h.real": "Real",
+                "h.empty": "No records in this period",
+                "h.count_part": "Showing first {m} of {n} records",
+                "h.count": "{n} records",
+                "h.log": "Log: {s} MB",
+                "h.not_rotated": " (not rotated)",
+                "res.basarili": "Succeeded",
+                "res.basarisiz": "Failed",
+                "res.zaman asimi": "Timed out",
+                "res.ertelendi": "Deferred (outside window)",
+                "res.planlandi": "Planned, not executed",
+                "res.test": "Test (not moved)",
+                "res.baslatildi": "Started (result not tracked)",
+                "res.devam ediyor": "In progress",
+                "err.parse": "Could not parse the Proxmox response (old engine) — the migration may have started",
+                "err.locked": "The VM was being backed up at the time (locked)",
+                "err.timeout": "Did not come up on the target (timeout)",
+                "err.start": "Migration could not be started",
+                "fmt.min_sec": "{m} min {s} s",
+                "fmt.sec": "{s} s",
+                "log.title": "Raw Log",
+                "log.sub": "Output of the last run",
+                "log.loading": "Loading log...",
+                "m.in": "In maintenance",
+                "m.exit_btn": "Exit maintenance",
+                "m.returning": "VMs returning",
+                "m.one_node": "Only one node can be in maintenance at a time",
+                "m.enter_btn": "Maintenance",
+                "m.busy": "balancer running",
+                "m.banner": "{n} is in maintenance mode",
+                "m.empty": "Node is empty — safe to reboot / update.",
+                "m.left": "{n} VMs are still running on it.",
+                "m.drained": "Drained: {n} VMs.",
+                "m.dry_banner": "Dry Run is on: moves are only simulated!",
+                "m.cant": "cannot move: {r}",
+                "m.waiting": "waiting to be moved",
+                "m.returning_line": "{node}: moving {n} VMs back",
+                "m.q_enter": "Put {n} into maintenance?",
+                "m.preparing": "Preparing preview — collecting cluster data (about 40 s)...",
+                "m.explain": "If you confirm, the balancer runs immediately and <b>live-migrates</b> the VMs on {n} to the nodes below, without waiting for the migration window. VMs that cannot move are <b>not shut down</b>; they stay where they are.",
+                "m.to_move": "VMs to move ({n})",
+                "m.none_to_move": "No running VMs to move.",
+                "m.unmovable": "VMs that cannot move ({c}) — they keep running on {n}",
+                "m.after": "Remaining nodes (estimated RAM after the moves)",
+                "m.overfull": "Warning: RAM usage of the remaining nodes would exceed the limit.",
+                "m.panel_note": "Note: this dashboard runs on {n}; it will be briefly unavailable while the node reboots.",
+                "m.dry_note": "Dry Run is on: VMs will not really move, the moves are only simulated.",
+                "m.confirm_enter": "Confirm — put {n} into maintenance",
+                "m.q_exit": "Take {n} out of maintenance?",
+                "m.exit_list": "The {c} VMs moved during maintenance will be live-migrated back to <b>{n}</b>:",
+                "m.exit_none": "No VMs to move back; the node will just leave maintenance.",
+                "m.confirm_exit": "Confirm — exit maintenance"
+            },
+        };
+        let LANG = 'tr';
+        try { LANG = localStorage.getItem('cbLang') || ((navigator.language || '').toLowerCase().startsWith('tr') ? 'tr' : 'en'); } catch (e) {}
+        if (!I18N[LANG]) LANG = 'en';
+        function t(key, p) {
+            let s = I18N[LANG][key] ?? I18N.en[key] ?? key;
+            if (p) s = s.replace(/\{(\w+)\}/g, (_, k) => p[k] ?? '');
+            return s;
+        }
+        // Backend (engine log / API) texts are Turkish ASCII; translate the known ones for English.
+        const MSG_EN = [
+            [/^(.+) KRITIK$/, '$1 CRITICAL'], [/^(.+) Yuksek$/, '$1 high'], [/^(.+) Bos$/, '$1 idle'],
+            [/^Cluster dengeli$/, 'Cluster is balanced'], [/^Saglikli$/, 'Healthy'], [/^Sistemler normal$/, 'All systems normal'],
+            [/fiziksel aygit/g, 'physical device'], [/depolama '([^']+)' tanimli degil/g, "storage '$1' is not defined"],
+            [/depolama '([^']+)' devre disi/g, "storage '$1' is disabled"],
+            [/'([^']+)' (\S+) uzerinde tanimli degil/g, "'$1' is not available on $2"],
+            [/yerel depolama '([^']+)'/g, "local storage '$1'"],
+            [/'([^']+)' (\S+) uzerinde BAGLI DEGIL/g, "'$1' is NOT MOUNTED on $2"],
+            [/HA grubu '([^']+)' sadece/g, "HA group '$1' only allows"],
+            [/USB\/PCI aygiti bagli \(canli tasinamaz\)/g, 'USB/PCI device attached (cannot live-migrate)'],
+            [/haric tutuluyor \(([^)]+)\)/g, 'excluded ($1)'], [/etiket:/g, 'tag:'],
+            [/uygun hedef node yok \(kapasite\/kural\)/g, 'no suitable target node (capacity/rules)'],
+            [/^(\S+) cevrimici bir node degil$/, '$1 is not an online node'],
+            [/^Ayni anda tek node bakimda olabilir \((.*) zaten bakimda\)$/, 'Only one node can be in maintenance at a time ($1 already is)'],
+            [/^(\S+) icin geri donus henuz bitmedi, biraz sonra tekrar deneyin$/, 'VMs are still moving back to $1, try again shortly'],
+            [/^(\S+) bakima alindi; VM'ler tasiniyor$/, '$1 is in maintenance; moving VMs'],
+            [/^(\S+) bakimda degil$/, '$1 is not in maintenance'],
+            [/^(\S+) bakimdan cikarildi; VM'ler geri tasiniyor$/, '$1 left maintenance; moving VMs back'],
+            [/^gecersiz node$/, 'invalid node'], [/^Onizleme alinamadi: /, 'Preview failed: '],
+            [/config okunamadi/g, 'could not read config'],
+        ];
+        // ...and restore the Turkish characters for Turkish.
+        const MSG_TR = [
+            [/aygiti bagli \(canli tasinamaz\)/g, 'aygıtı bağlı (canlı taşınamaz)'], [/fiziksel aygit/g, 'fiziksel aygıt'],
+            [/BAGLI DEGIL/g, 'BAĞLI DEĞİL'], [/tanimli degil/g, 'tanımlı değil'], [/devre disi/g, 'devre dışı'],
+            [/ uzerinde /g, ' üzerinde '], [/haric tutuluyor/g, 'hariç tutuluyor'],
+            [/HA grubu '([^']+)' sadece/g, "HA grubu '$1' yalnızca"], [/cevrimici bir node degil/g, 'çevrimiçi bir node değil'],
+            [/Ayni anda tek node bakimda olabilir/g, 'Aynı anda tek node bakımda olabilir'], [/zaten bakimda/g, 'zaten bakımda'],
+            [/icin geri donus henuz bitmedi, biraz sonra tekrar deneyin/g, 'için geri dönüş henüz bitmedi, biraz sonra tekrar deneyin'],
+            [/bakima alindi; VM'ler tasiniyor/g, "bakıma alındı; VM'ler taşınıyor"], [/bakimda degil/g, 'bakımda değil'],
+            [/bakimdan cikarildi; VM'ler geri tasiniyor/g, "bakımdan çıkarıldı; VM'ler geri taşınıyor"],
+            [/gecersiz node/g, 'geçersiz node'], [/Onizleme alinamadi/g, 'Önizleme alınamadı'], [/config okunamadi/g, 'config okunamadı'],
+            [/ Yuksek$/, ' yüksek'], [/ Bos$/, ' boş'], [/ KRITIK$/, ' KRİTİK'], [/^Saglikli$/, 'Sağlıklı'],
+        ];
+        function tMsg(s) {
+            if (s == null) return s;
+            return (LANG === 'en' ? MSG_EN : MSG_TR).reduce((a, [rx, rep]) => a.replace(rx, rep), String(s));
+        }
+        function pct(v) { return LANG === 'tr' ? `%${v}` : `${v}%`; }
+        function applyI18n() {
+            document.documentElement.lang = LANG;
+            document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+            document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+            document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+        }
+        let currentPage = 'dashboard';
+        function setLang(l) {
+            LANG = I18N[l] ? l : 'en';
+            try { localStorage.setItem('cbLang', LANG); } catch (e) {}
+            applyI18n();
+            document.getElementById('pageTitle').textContent = t('nav.' + currentPage);
+            for (const c of [chartCpuMonitor, chartMemMonitor, chartDiskMonitor]) if (c) { c.data.labels = [t('mon.used'), t('mon.free')]; c.update(); }
+            if (chartHistory) { chartHistory.data.datasets[0].label = t('h.ds_score'); chartHistory.data.datasets[1].label = t('h.ds_thr'); }
+            renderHistory(); renderMaintenance(); refreshAll();
+        }
+
         let chartDist, chartResource, chartCpuMonitor, chartMemMonitor, chartDiskMonitor;
         let allGuests = [];
         let currentConfig = {};
@@ -616,11 +1124,8 @@
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
             document.getElementById('page-' + page).classList.add('active');
             document.querySelector(`[data-page="${page}"]`).classList.add('active');
-            const titles = {
-                dashboard: 'Dashboard', nodes: "Node'lar", vms: 'Sanal Makineler',
-                containers: "Container'lar", balance: 'Dengeleme', monitor: 'Monitoring', settings: 'Ayarlar'
-            };
-            document.getElementById('pageTitle').textContent = titles[page] || page;
+            currentPage = page;
+            document.getElementById('pageTitle').textContent = t('nav.' + page);
             if (page === 'monitor') { initMonitorCharts(); loadDistribution(); }
             if (page === 'settings') { loadConfig(); loadRepoStatus(); loadBalanceLog(); loadHistory(); }
             if (page === 'nodes') { loadMaintenance(); }
@@ -664,13 +1169,13 @@
                 options: { responsive: true, circumference: 180, rotation: -90, cutout: '70%', plugins: { legend: { display: false } } }
             };
             chartCpuMonitor = new Chart(document.getElementById('chartCpuMonitor'), {
-                ...gaugeOpts, data: { labels: ['Kullanilan', 'Bos'], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#60a5fa', '#262c36'] }] }
+                ...gaugeOpts, data: { labels: [t('mon.used'), t('mon.free')], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#60a5fa', '#262c36'] }] }
             });
             chartMemMonitor = new Chart(document.getElementById('chartMemMonitor'), {
-                ...gaugeOpts, data: { labels: ['Kullanilan', 'Bos'], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#a78bfa', '#262c36'] }] }
+                ...gaugeOpts, data: { labels: [t('mon.used'), t('mon.free')], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#a78bfa', '#262c36'] }] }
             });
             chartDiskMonitor = new Chart(document.getElementById('chartDiskMonitor'), {
-                ...gaugeOpts, data: { labels: ['Kullanilan', 'Bos'], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#94a3b8', '#262c36'] }] }
+                ...gaugeOpts, data: { labels: [t('mon.used'), t('mon.free')], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#94a3b8', '#262c36'] }] }
             });
         }
 
@@ -682,8 +1187,8 @@
                 document.getElementById('stat-nodes').textContent = d.node_count || 0;
                 document.getElementById('stat-guests').textContent = `${d.running || 0}/${d.total || 0}`;
                 document.getElementById('stat-cpu').textContent = `${d.avg_cpu || 0}%`;
-                document.getElementById('stat-balance').textContent = d.balanced ? 'Dengeli' : `%${d.max_diff?.toFixed(0) || 0}`;
-                document.getElementById('lastUpdate').textContent = 'Son: ' + (d.time || '-');
+                document.getElementById('stat-balance').textContent = d.balanced ? t('stat.balanced') : pct(d.max_diff?.toFixed(0) || 0);
+                document.getElementById('lastUpdate').textContent = t('hdr.last', { t: d.time || '-' });
             } catch (e) { console.error(e); }
         }
 
@@ -757,7 +1262,7 @@
                         <div class="grid grid-cols-3 gap-4">
                             <div class="text-center p-3 bg-white/5 rounded-lg">
                                 <p class="text-2xl font-bold text-cpu">${n.cpu}%</p>
-                                <p class="text-xs text-gray-400">CPU (${n.maxcpu} core)</p>
+                                <p class="text-xs text-gray-400">${t('node.cores', { n: n.maxcpu })}</p>
                             </div>
                             <div class="text-center p-3 bg-white/5 rounded-lg">
                                 <p class="text-2xl font-bold text-ram">${n.mem_percent}%</p>
@@ -795,7 +1300,7 @@
                     <td class="p-3"><span class="px-2 py-0.5 rounded text-xs ${v.status === 'running' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'}">${v.status}</span></td>
                     <td class="p-3">${v.cpu}%</td>
                     <td class="p-3">${v.mem_percent}%</td>
-                    <td class="p-3">${(v.tags || '').split(',').filter(t => t).map(t => `<span class="tag tag-${t.trim()}">${t.trim()}</span>`).join(' ')}</td>
+                    <td class="p-3">${(v.tags || '').split(',').filter(x => x).map(x => `<span class="tag tag-${x.trim()}">${x.trim()}</span>`).join(' ')}</td>
                 </tr>
             `).join('');
         }
@@ -823,8 +1328,8 @@
                 const colors = { danger: 'border-red-500 bg-red-500/10', success: 'border-green-500 bg-green-500/10', warning: 'border-yellow-500 bg-yellow-500/10', info: 'border-white/10 bg-white/5' };
                 const html = recs.map(r => `
                     <div class="rounded-lg p-3 border-l-4 ${colors[r.type] || colors.info}">
-                        <p class="font-medium text-sm">${r.title}</p>
-                        <p class="text-xs text-gray-400 mt-1">${r.msg}</p>
+                        <p class="font-medium text-sm">${esc(tMsg(r.title))}</p>
+                        <p class="text-xs text-gray-400 mt-1">${esc(tMsg(r.msg))}</p>
                     </div>
                 `).join('');
                 document.getElementById('recommendations').innerHTML = html;
@@ -893,11 +1398,11 @@
                 });
                 const result = await res.json();
                 if (result.success) {
-                    showToast('Ayarlar kaydedildi!', 'success');
+                    showToast(t('lb.saved'), 'success');
                 } else {
-                    showToast('Hata: ' + result.message, 'error');
+                    showToast(t('common.error', { e: tMsg(result.message) }), 'error');
                 }
-            } catch (e) { showToast('Hata: ' + e, 'error'); }
+            } catch (e) { showToast(t('common.error', { e }), 'error'); }
         }
 
         async function loadRepoStatus() {
@@ -913,7 +1418,7 @@
                     el.innerHTML = '<i class="fas fa-exclamation-circle text-xs"></i> Enterprise';
                 } else {
                     el.className = 'status-badge status-error';
-                    el.innerHTML = '<i class="fas fa-times-circle text-xs"></i> Belirsiz';
+                    el.innerHTML = '<i class="fas fa-times-circle text-xs"></i> ' + t('px.unknown');
                 }
             } catch (e) { console.error(e); }
         }
@@ -921,7 +1426,7 @@
         async function runBalance() {
             const dryRun = true; // panelden sadece test calistirilir
             const log = document.getElementById('balance-log');
-            log.textContent = 'Balancer calisiyor...';
+            log.textContent = t('lb.running');
             try {
                 const res = await fetch('/api/proxmox/run-balance', {
                     method: 'POST',
@@ -930,15 +1435,15 @@
                 });
                 const d = await res.json();
                 log.textContent = d.output || d.error || JSON.stringify(d, null, 2);
-                showToast(dryRun ? 'Dry-run tamamlandi' : 'Dengeleme tamamlandi', 'success');
-            } catch (e) { log.textContent = 'Hata: ' + e; }
+                showToast(t('lb.dry_done'), 'success');
+            } catch (e) { log.textContent = t('common.error', { e }); }
         }
 
         async function loadBalanceLog() {
             try {
                 const res = await fetch('/api/proxmox/balance-status');
                 const d = await res.json();
-                document.getElementById('balance-log').textContent = d.logs || 'Log bulunamadi';
+                document.getElementById('balance-log').textContent = d.logs || t('lb.no_log');
             } catch (e) { console.error(e); }
         }
 
@@ -958,12 +1463,12 @@
             const el = document.getElementById(id);
             el.classList.remove('hc-ok', 'hc-warn', 'hc-bad');
             el.classList.add(ok ? 'hc-ok' : (warn ? 'hc-warn' : 'hc-bad'));
-            const badge = ok ? '<span class="status-badge status-success"><i class="fas fa-check-circle text-xs"></i> Saglikli</span>'
-                             : (warn ? '<span class="status-badge status-warning"><i class="fas fa-exclamation-circle text-xs"></i> Dikkat</span>'
-                                     : '<span class="status-badge status-error"><i class="fas fa-times-circle text-xs"></i> Sorun</span>');
+            const badge = ok ? '<span class="status-badge status-success"><i class="fas fa-check-circle text-xs"></i> ' + t('hc.healthy') + '</span>'
+                             : (warn ? '<span class="status-badge status-warning"><i class="fas fa-exclamation-circle text-xs"></i> ' + t('hc.attention') + '</span>'
+                                     : '<span class="status-badge status-error"><i class="fas fa-times-circle text-xs"></i> ' + t('hc.problem') + '</span>');
             el.querySelector('.hc-body').innerHTML = badge + '<div class="mt-2 space-y-1">' + html + '</div>';
         }
-        function upStr(s) { return `${Math.floor(s / 86400)}g ${Math.floor((s % 86400) / 3600)}s`; }
+        function upStr(s) { return t('fmt.uptime', { d: Math.floor(s / 86400), h: Math.floor((s % 86400) / 3600) }); }
         function toggleLegend(force) {
             const el = document.getElementById('hc-legend');
             const show = force !== undefined ? force : el.classList.contains('hidden');
@@ -977,36 +1482,36 @@
             try {
                 const res = await fetch('/api/health');
                 const d = await res.json();
-                document.getElementById('health-time').textContent = 'Son kontrol: ' + d.time;
+                document.getElementById('health-time').textContent = t('hc.last_check', { t: d.time });
 
                 const c = d.cluster || {};
                 hcSet('hc-cluster', c.ok, c.error ? esc(c.error) :
-                    `<p>Quorum: <b>${c.quorate ? 'Var' : 'YOK'}</b></p>` +
-                    (c.nodes || []).map(n => `<p>${n.online ? '<span class="dot ok"></span>' : '<span class="dot bad"></span>'} ${esc(n.name)} <span class="text-gray-500">${n.online ? 'uptime ' + upStr(n.uptime) : 'erisilemiyor'}</span></p>`).join(''));
+                    `<p>${t('hc.quorum', { v: c.quorate ? t('hc.yes') : t('hc.no') })}</p>` +
+                    (c.nodes || []).map(n => `<p>${n.online ? '<span class="dot ok"></span>' : '<span class="dot bad"></span>'} ${esc(n.name)} <span class="text-gray-500">${n.online ? t('hc.uptime', { v: upStr(n.uptime) }) : t('hc.unreachable')}</span></p>`).join(''));
 
                 const s = d.storage || {};
                 hcSet('hc-storage', s.ok, s.error ? esc(s.error) :
-                    ((s.items || []).map(i => `<p>${i.mounted ? '<span class="dot ok"></span>' : '<span class="dot bad"></span>'} ${esc(i.storage)} @ ${esc(i.node)} <span class="text-gray-500">${i.mounted ? esc(i.source) : 'BAGLI DEGIL'}</span></p>`).join('')
-                     || '<p class="text-gray-500">Paylasimli dizin depolamasi yok</p>'));
+                    ((s.items || []).map(i => `<p>${i.mounted ? '<span class="dot ok"></span>' : '<span class="dot bad"></span>'} ${esc(i.storage)} @ ${esc(i.node)} <span class="text-gray-500">${i.mounted ? esc(i.source) : t('hc.not_mounted')}</span></p>`).join('')
+                     || `<p class="text-gray-500">${t('hc.no_shared')}</p>`));
 
                 const h = d.ha || {};
                 hcSet('hc-ha', h.ok, h.error ? esc(h.error) :
-                    `<p>${h.total} servis izleniyor</p>` +
-                    (h.bad || []).map(b => `<p><span class="dot bad"></span>${esc(b.sid)} @ ${esc(b.node)} <span class="text-gray-500">durum: ${esc(b.state)} (istenen: ${esc(b.request_state)})</span></p>`).join(''));
+                    `<p>${t('hc.ha_total', { n: h.total })}</p>` +
+                    (h.bad || []).map(b => `<p><span class="dot bad"></span>${esc(b.sid)} @ ${esc(b.node)} <span class="text-gray-500">${t('hc.ha_state', { s: esc(b.state), r: esc(b.request_state) })}</span></p>`).join(''));
 
                 const b = d.backups || {};
                 const probs = b.problems || [];
                 const onlyWarn = !b.ok && probs.length > 0 && probs.every(p => p.level === 'warn');
                 hcSet('hc-backups', b.ok, b.error ? esc(b.error) :
-                    `<p>${b.newest_ok}/${b.total} VM son 26 saatte yedeklendi</p>` +
-                    probs.slice(0, 8).map(p => `<p>${p.level === 'bad' ? '<span class="dot bad"></span>' : '<span class="dot warn"></span>'} ${esc(p.vmid)} ${esc(p.name)} <span class="text-gray-500">${p.last ? 'son: ' + esc(p.last) + ' (' + p.age_h + ' sa)' : 'hic yedek yok'}</span></p>`).join('') +
-                    (probs.length > 8 ? `<p class="text-gray-500">+${probs.length - 8} daha</p>` : ''), onlyWarn);
+                    `<p>${t('hc.bk_summary', { ok: b.newest_ok, total: b.total })}</p>` +
+                    probs.slice(0, 8).map(p => `<p>${p.level === 'bad' ? '<span class="dot bad"></span>' : '<span class="dot warn"></span>'} ${esc(p.vmid)} ${esc(p.name)} <span class="text-gray-500">${p.last ? t('hc.bk_last', { t: esc(p.last), h: p.age_h }) : t('hc.bk_none')}</span></p>`).join('') +
+                    (probs.length > 8 ? `<p class="text-gray-500">${t('hc.more', { n: probs.length - 8 })}</p>` : ''), onlyWarn);
 
-                const t = d.tasks || {};
+                const tk = d.tasks || {};
                 const tEl = document.getElementById('hc-tasks');
-                if (t.count) {
+                if (tk.count) {
                     tEl.classList.remove('hidden');
-                    tEl.querySelector('.hc-body').innerHTML = (t.failed || []).map(x => `<p>${esc(x.time)} ${esc(x.node)} ${esc(x.type)} ${esc(x.id)} → ${esc(x.status)}</p>`).join('');
+                    tEl.querySelector('.hc-body').innerHTML = (tk.failed || []).map(x => `<p>${esc(x.time)} ${esc(x.node)} ${esc(x.type)} ${esc(x.id)} → ${esc(x.status)}</p>`).join('');
                 } else {
                     tEl.classList.add('hidden');
                 }
@@ -1016,23 +1521,25 @@
         // ============ Tasima Gecmisi ============
         let histData = null, chartHistory = null;
         const RESULT_UI = {
-            'basarili':     { cls: 'status-success', icon: 'fa-check-circle', text: 'Basarili' },
-            'basarisiz':    { cls: 'status-error', icon: 'fa-times-circle', text: 'Basarisiz' },
-            'zaman asimi':  { cls: 'status-error', icon: 'fa-hourglass-end', text: 'Zaman asimi' },
-            'ertelendi':    { cls: 'status-warning', icon: 'fa-moon', text: 'Ertelendi (pencere disi)' },
-            'planlandi':    { cls: 'status-warning', icon: 'fa-list', text: 'Planlandi, yapilmadi' },
-            'test':         { cls: '', icon: 'fa-flask', text: 'Test (tasinmadi)' },
-            'baslatildi':   { cls: '', icon: 'fa-play', text: 'Baslatildi (sonuc izlenmedi)' },
-            'devam ediyor': { cls: '', icon: 'fa-spinner', text: 'Devam ediyor' },
+            'basarili':     { cls: 'status-success', icon: 'fa-check-circle' },
+            'basarisiz':    { cls: 'status-error', icon: 'fa-times-circle' },
+            'zaman asimi':  { cls: 'status-error', icon: 'fa-hourglass-end' },
+            'ertelendi':    { cls: 'status-warning', icon: 'fa-moon' },
+            'planlandi':    { cls: 'status-warning', icon: 'fa-list' },
+            'test':         { cls: '', icon: 'fa-flask' },
+            'baslatildi':   { cls: '', icon: 'fa-play' },
+            'devam ediyor': { cls: '', icon: 'fa-spinner' },
         };
         function friendlyError(e) {
             if (!e) return '';
-            if (/Expecting value|Extra data/.test(e)) return 'Proxmox yaniti okunamadi (eski motor) — tasima baslamis olabilir';
-            if (/locked \(backup\)/.test(e)) return 'VM o sirada yedekleniyordu (kilitli)';
-            return e;
+            if (/Expecting value|Extra data/.test(e)) return t('err.parse');
+            if (/locked \(backup\)/.test(e)) return t('err.locked');
+            if (e === 'Hedefte calisir hale gelmedi (zaman asimi)') return t('err.timeout');
+            if (e === 'Tasima baslatilamadi') return t('err.start');
+            return tMsg(e);
         }
         function fmtTs(ts) { return ts ? ts.slice(8, 10) + '.' + ts.slice(5, 7) + ' ' + ts.slice(11, 16) : '-'; }
-        function fmtDur(s) { return s == null ? '' : (s >= 60 ? Math.floor(s / 60) + ' dk ' + (s % 60) + ' sn' : s + ' sn'); }
+        function fmtDur(s) { return s == null ? '' : (s >= 60 ? t('fmt.min_sec', { m: Math.floor(s / 60), s: s % 60 }) : t('fmt.sec', { s })); }
 
         function toggleHistInfo(force) {
             const el = document.getElementById('hist-info');
@@ -1051,7 +1558,7 @@
                 histData = await res.json();
                 renderHistory();
             } catch (e) {
-                document.getElementById('hist-body').innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">Gecmis okunamadi</td></tr>';
+                document.getElementById('hist-body').innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-500">' + t('h.read_err') + '</td></tr>';
             }
         }
 
@@ -1060,21 +1567,21 @@
             const d = histData, s = d.summary || {};
             // Son calisma karari
             const lr = d.last_run;
-            let last = '<span class="text-gray-400">Bu donemde calisma kaydi yok.</span>';
+            let last = `<span class="text-gray-400">${t('h.no_runs')}</span>`;
             if (lr) {
                 const over = lr.bal != null && lr.thr != null && lr.bal > lr.thr;
                 const verdict = lr.planned
-                    ? `${lr.planned} tasima planlandi${lr.dry ? ' (test modu)' : ''}, ${lr.executed} uygulandi${lr.failed ? `, <span style="color:var(--bad)">${lr.failed} basarisiz</span>` : ''}`
-                    : (over ? 'esik asildi ama dengeyi iyilestiren uygun tasima bulunamadi' : 'cluster dengeli, tasima gerekmedi');
+                    ? `${t('h.planned', { n: lr.planned })}${lr.dry ? t('h.test_mode') : ''}, ${t('h.executed', { n: lr.executed })}${lr.failed ? `, <span style="color:var(--bad)">${t('h.n_failed', { n: lr.failed })}</span>` : ''}`
+                    : (over ? t('h.no_fit') : t('h.balanced'));
                 last = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">
-                    <span class="font-medium">Son calisma: ${esc(fmtTs(lr.ts))}</span>
-                    <span>Denge skoru <b>${lr.bal ?? '-'}</b> / esik ${lr.thr ?? '-'}</span>
+                    <span class="font-medium">${t('h.last_run', { t: esc(fmtTs(lr.ts)) })}</span>
+                    <span>${t('h.score', { b: lr.bal ?? '-', t: lr.thr ?? '-' })}</span>
                     <span class="text-gray-400">→ ${verdict}</span>
-                    ${d.running ? '<span class="text-xs text-gray-500"><i class="fas fa-spinner fa-spin"></i> su an yeni calisma suruyor</span>' : ''}</div>`;
+                    ${d.running ? '<span class="text-xs text-gray-500"><i class="fas fa-spinner fa-spin"></i> ' + t('h.running') + '</span>' : ''}</div>`;
                 const rj = Object.entries(lr.rejections || {});
                 if (rj.length) {
-                    last += `<details class="mt-2"><summary class="cursor-pointer text-xs text-gray-400">${rj.length} VM bazi node'lara tasinamiyor — nedenleri</summary>
-                        <div class="mt-2 space-y-1 text-xs text-gray-400">${rj.map(([v, r]) => `<p><b class="text-gray-300">VM ${esc(v)}</b>: ${esc(r)}</p>`).join('')}</div></details>`;
+                    last += `<details class="mt-2"><summary class="cursor-pointer text-xs text-gray-400">${t('h.rejected', { n: rj.length })}</summary>
+                        <div class="mt-2 space-y-1 text-xs text-gray-400">${rj.map(([v, r]) => `<p><b class="text-gray-300">VM ${esc(v)}</b>: ${esc(tMsg(r))}</p>`).join('')}</div></details>`;
                 }
             }
             document.getElementById('hist-last').innerHTML = last;
@@ -1083,12 +1590,12 @@
             const box = (label, val, color) => `<div class="p-3 rounded-lg" style="background:var(--surface-2)">
                 <p class="text-xs text-gray-400">${label}</p><p class="text-xl font-semibold" ${color ? `style="color:${color}"` : ''}>${val ?? 0}</p></div>`;
             document.getElementById('hist-summary').innerHTML =
-                box('Calisma', s.runs) +
-                box('Gercek tasima', s.real) +
-                box('Basarili', s.success, s.success ? 'var(--ok)' : '') +
-                box('Basarisiz', s.failed, s.failed ? 'var(--bad)' : '') +
-                box('Test / Ertelenen', `${s.test || 0} / ${s.deferred || 0}`) +
-                box('Ileri-geri VM', s.pingpong_vms, s.pingpong_vms ? 'var(--warn)' : '');
+                box(t('h.s_runs'), s.runs) +
+                box(t('h.s_real'), s.real) +
+                box(t('h.s_ok'), s.success, s.success ? 'var(--ok)' : '') +
+                box(t('h.s_bad'), s.failed, s.failed ? 'var(--bad)' : '') +
+                box(t('h.s_test'), `${s.test || 0} / ${s.deferred || 0}`) +
+                box(t('h.s_pp'), s.pingpong_vms, s.pingpong_vms ? 'var(--warn)' : '');
 
             // Grafik
             const pts = d.chart || [];
@@ -1097,8 +1604,8 @@
                 chartHistory = new Chart(document.getElementById('chartHistory'), {
                     type: 'line',
                     data: { labels, datasets: [
-                        { label: 'Denge skoru', data: pts.map(p => p.bal), borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.08)', fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.2 },
-                        { label: 'Esik', data: pts.map(p => p.thr), borderColor: '#eab308', borderDash: [5, 4], pointRadius: 0, borderWidth: 1 } ] },
+                        { label: t('h.ds_score'), data: pts.map(p => p.bal), borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.08)', fill: true, pointRadius: 0, borderWidth: 1.5, tension: 0.2 },
+                        { label: t('h.ds_thr'), data: pts.map(p => p.thr), borderColor: '#eab308', borderDash: [5, 4], pointRadius: 0, borderWidth: 1 } ] },
                     options: { responsive: true, maintainAspectRatio: false, animation: false, interaction: { mode: 'index', intersect: false },
                         plugins: { legend: { display: false } },
                         scales: { x: { ticks: { color: '#8b939e', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
@@ -1120,26 +1627,27 @@
             if (f === 'pingpong') rows = rows.filter(m => m.pingpong);
             const shown = rows.slice(0, 200);
             document.getElementById('hist-body').innerHTML = shown.length ? shown.map(m => {
-                const r = RESULT_UI[m.result] || { cls: '', icon: 'fa-circle', text: m.result };
+                const r = RESULT_UI[m.result] || { cls: '', icon: 'fa-circle' };
+                const rText = RESULT_UI[m.result] ? t('res.' + m.result) : esc(m.result);
                 const reason = m.reason === 'balance'
-                    ? `Denge skoru ${m.bal_before} → ${m.bal_after} <span class="text-gray-500">(esik ${m.threshold ?? '-'})</span>`
-                    : m.reason === 'maintenance' ? 'Bakim modu: node bosaltiliyor'
-                    : m.reason === 'maintenance_return' ? `Bakim sonrasi eski node'una geri donus`
-                    : `<span class="text-gray-500">Eski motor — gerekce kaydedilmemis${m.bal_before != null ? ' (skor ' + m.bal_before + ')' : ''}</span>`;
+                    ? t('h.r_balance', { a: m.bal_before, b: m.bal_after, t: m.threshold ?? '-' })
+                    : m.reason === 'maintenance' ? t('h.r_maint')
+                    : m.reason === 'maintenance_return' ? t('h.r_return')
+                    : `<span class="text-gray-500">${t('h.r_legacy')}${m.bal_before != null ? t('h.r_score', { s: m.bal_before }) : ''}</span>`;
                 const err = m.error ? `<p class="text-xs mt-1" style="color:#f87171">${esc(friendlyError(m.error))}</p>` : '';
                 const dur = m.duration_s != null ? `<span class="text-xs text-gray-500 ml-1">${fmtDur(m.duration_s)}</span>` : '';
-                const pp = m.pingpong ? ' <span class="status-badge status-warning" style="padding:1px 6px;font-size:10px" title="24 saat icinde geri tasindi veya 3+ kez tasindi">ileri-geri</span>' : '';
+                const pp = m.pingpong ? ' <span class="status-badge status-warning" style="padding:1px 6px;font-size:10px" title="' + t('h.pp_t') + '">' + t('h.pp') + '</span>' : '';
                 return `<tr class="border-t" style="border-color:var(--line)">
                     <td class="p-2.5 whitespace-nowrap text-gray-400">${esc(fmtTs(m.ts))}</td>
                     <td class="p-2.5 whitespace-nowrap"><b>${esc(m.vmid)}</b> ${esc(m.name)}${pp}</td>
                     <td class="p-2.5 whitespace-nowrap">${esc(m.source)} <span class="text-gray-500">→</span> ${esc(m.target)}</td>
                     <td class="p-2.5">${reason}</td>
-                    <td class="p-2.5">${m.mode === 'test' ? '<span class="text-gray-400">Test</span>' : 'Gercek'}</td>
-                    <td class="p-2.5"><span class="status-badge ${r.cls}" ${r.cls ? '' : 'style="background:rgba(255,255,255,0.06);color:var(--muted)"'}><i class="fas ${r.icon} text-xs"></i> ${r.text}</span>${dur}${err}</td>
+                    <td class="p-2.5">${m.mode === 'test' ? '<span class="text-gray-400">Test</span>' : t('h.real')}</td>
+                    <td class="p-2.5"><span class="status-badge ${r.cls}" ${r.cls ? '' : 'style="background:rgba(255,255,255,0.06);color:var(--muted)"'}><i class="fas ${r.icon} text-xs"></i> ${rText}</span>${dur}${err}</td>
                 </tr>`;
-            }).join('') : '<tr><td colspan="6" class="p-6 text-center text-gray-500">Bu donemde kayit yok</td></tr>';
-            document.getElementById('hist-count').textContent = rows.length > shown.length ? `${rows.length} kayittan ilk ${shown.length} gosteriliyor` : `${rows.length} kayit`;
-            document.getElementById('hist-logsize').textContent = d.log_size_mb != null ? `Log: ${d.log_size_mb} MB${d.log_rotated ? '' : ' (dondurulmuyor)'}` : '';
+            }).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-500">${t('h.empty')}</td></tr>`;
+            document.getElementById('hist-count').textContent = rows.length > shown.length ? t('h.count_part', { n: rows.length, m: shown.length }) : t('h.count', { n: rows.length });
+            document.getElementById('hist-logsize').textContent = d.log_size_mb != null ? t('h.log', { s: d.log_size_mb }) + (d.log_rotated ? '' : t('h.not_rotated')) : '';
         }
 
         // ============ Bakim modu ============
@@ -1162,14 +1670,14 @@
                 const slot = document.getElementById('mnt-' + n.name);
                 if (!slot) return;
                 if (n.maintenance) {
-                    slot.innerHTML = `<span class="status-badge status-warning"><i class="fas fa-screwdriver-wrench text-xs"></i> Bakimda</span>
-                        <button onclick="openMaintExit('${esc(n.name)}')" class="px-3 py-1.5 btn-secondary rounded-lg text-xs">Bakimdan cikar</button>`;
+                    slot.innerHTML = `<span class="status-badge status-warning"><i class="fas fa-screwdriver-wrench text-xs"></i> ${t('m.in')}</span>
+                        <button onclick="openMaintExit('${esc(n.name)}')" class="px-3 py-1.5 btn-secondary rounded-lg text-xs">${t('m.exit_btn')}</button>`;
                 } else if (n.returning) {
-                    slot.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.06);color:var(--muted)"><i class="fas fa-rotate-left text-xs"></i> VM'ler geri donuyor</span>`;
+                    slot.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.06);color:var(--muted)"><i class="fas fa-rotate-left text-xs"></i> ${t('m.returning')}</span>`;
                 } else {
                     const disabled = inMaint || returning.length;
-                    slot.innerHTML = `<button ${disabled ? 'disabled title="Ayni anda tek node bakimda olabilir"' : ''} onclick="openMaintEnter('${esc(n.name)}')"
-                        class="px-3 py-1.5 btn-secondary rounded-lg text-xs ${disabled ? 'opacity-40 cursor-not-allowed' : ''}"><i class="fas fa-screwdriver-wrench"></i> Bakima al</button>`;
+                    slot.innerHTML = `<button ${disabled ? `disabled title="${t('m.one_node')}"` : ''} onclick="openMaintEnter('${esc(n.name)}')"
+                        class="px-3 py-1.5 btn-secondary rounded-lg text-xs ${disabled ? 'opacity-40 cursor-not-allowed' : ''}"><i class="fas fa-screwdriver-wrench"></i> ${t('m.enter_btn')}</button>`;
                 }
             });
             // Ust serit
@@ -1180,23 +1688,23 @@
             let html = '';
             if (inMaint) {
                 const left = inMaint.running;
-                const busy = d.busy ? ' <span class="text-xs text-gray-500"><i class="fas fa-spinner fa-spin"></i> dengeleyici calisiyor</span>' : '';
+                const busy = d.busy ? ' <span class="text-xs text-gray-500"><i class="fas fa-spinner fa-spin"></i> ' + t('m.busy') + '</span>' : '';
                 const ok = left.length === 0;
                 b.classList.remove('hc-ok', 'hc-warn', 'hc-bad'); b.classList.add(ok ? 'hc-ok' : 'hc-warn');
                 html += `<div class="flex flex-wrap items-center justify-between gap-3">
-                    <div><p class="font-semibold"><i class="fas fa-screwdriver-wrench text-gray-400"></i> ${esc(inMaint.name)} bakim modunda${busy}</p>
-                    <p class="text-sm text-gray-400 mt-1">${ok ? '<span style="color:var(--ok)">Node bos — guvenle yeniden baslatilabilir / guncellenebilir.</span>'
-                        : `Uzerinde hala ${left.length} calisan VM var.`} Bosaltilan: ${inMaint.drained.length} VM.${d.dry_run ? ' <b style="color:var(--warn)">Dry Run acik: tasimalar sadece test ediliyor!</b>' : ''}</p></div>
-                    <button onclick="openMaintExit('${esc(inMaint.name)}')" class="px-3 py-2 btn-secondary rounded-lg text-sm">Bakimdan cikar</button></div>`;
+                    <div><p class="font-semibold"><i class="fas fa-screwdriver-wrench text-gray-400"></i> ${t('m.banner', { n: esc(inMaint.name) })}${busy}</p>
+                    <p class="text-sm text-gray-400 mt-1">${ok ? `<span style="color:var(--ok)">${t('m.empty')}</span>`
+                        : t('m.left', { n: left.length })} ${t('m.drained', { n: inMaint.drained.length })}${d.dry_run ? ` <b style="color:var(--warn)">${t('m.dry_banner')}</b>` : ''}</p></div>
+                    <button onclick="openMaintExit('${esc(inMaint.name)}')" class="px-3 py-2 btn-secondary rounded-lg text-sm">${t('m.exit_btn')}</button></div>`;
                 if (left.length) {
                     html += `<div class="mt-3 text-xs space-y-1">${left.map(v => {
                         const why = (d.unmovable || {})[String(v.vmid)];
-                        return `<p><b>${esc(v.vmid)} ${esc(v.name)}</b> — <span class="text-gray-400">${why ? 'tasinamiyor: ' + esc(why.split(': ').slice(1).join(': ')) : 'tasinmayi bekliyor'}</span></p>`;
+                        return `<p><b>${esc(v.vmid)} ${esc(v.name)}</b> — <span class="text-gray-400">${why ? t('m.cant', { r: esc(tMsg(why.split(': ').slice(1).join(': '))) }) : t('m.waiting')}</span></p>`;
                     }).join('')}</div>`;
                 }
             }
             returning.forEach(n => {
-                html += `<p class="text-sm ${inMaint ? 'mt-3' : ''}"><i class="fas fa-rotate-left text-gray-400"></i> ${esc(n.name)}: ${n.drained.length} VM eski yerine geri tasiniyor
+                html += `<p class="text-sm ${inMaint ? 'mt-3' : ''}"><i class="fas fa-rotate-left text-gray-400"></i> ${t('m.returning_line', { node: esc(n.name), n: n.drained.length })}
                     <span class="text-xs text-gray-500">(${n.drained.map(e => esc(e.vmid + ' ' + e.name)).join(', ')})</span></p>`;
             });
             b.innerHTML = html;
@@ -1214,43 +1722,42 @@
         }
 
         async function openMaintEnter(node) {
-            showMaintModal(`${node} bakima alinsin mi?`, `<p class="text-gray-400"><i class="fas fa-spinner fa-spin"></i> Onizleme hazirlaniyor — cluster verisi toplaniyor (yaklasik 40 sn)...</p>`);
+            showMaintModal(t('m.q_enter', { n: node }), `<p class="text-gray-400"><i class="fas fa-spinner fa-spin"></i> ${t('m.preparing')}</p>`);
             let p;
             try { p = await (await fetch('/api/maintenance/preview?node=' + encodeURIComponent(node))).json(); }
             catch (e) { p = { error: String(e) }; }
-            if (p.error) { showMaintModal(`${node} bakima alinsin mi?`, `<p style="color:var(--bad)">${esc(p.error)}</p>`); return; }
+            if (p.error) { showMaintModal(t('m.q_enter', { n: node }), `<p style="color:var(--bad)">${esc(tMsg(p.error))}</p>`); return; }
             const moves = p.moves || [], un = p.unmovable || [];
-            let body = `<p class="text-gray-400 mb-4">Onaylarsaniz dengeleyici hemen calisir ve ${esc(node)} uzerindeki VM'leri <b>canli (kesintisiz)</b> olarak asagidaki node'lara tasir.
-                Tasima penceresini beklemez. Tasinamayan VM'ler <b>kapatilmaz</b>, yerinde kalir.</p>`;
-            body += `<p class="font-medium mb-2">Tasinacak VM'ler (${moves.length})</p>`;
+            let body = `<p class="text-gray-400 mb-4">${t('m.explain', { n: esc(node) })}</p>`;
+            body += `<p class="font-medium mb-2">${t('m.to_move', { n: moves.length })}</p>`;
             body += moves.length ? `<div class="rounded-lg border mb-4 max-h-64 overflow-y-auto hist-scroll" style="border-color:var(--line)"><table class="w-full text-sm">${moves.map(m => `
-                <tr class="border-t" style="border-color:var(--line)"><td class="p-2"><b>${esc(m.vmid)}</b> ${esc(m.name)}${m.excluded_by ? ' <span class="status-badge status-warning" style="padding:1px 6px;font-size:10px">' + esc(m.excluded_by.replace('etiket:', '')) + '</span>' : ''}</td>
-                <td class="p-2 text-gray-400">${esc(m.source)} → <span class="text-gray-100">${esc(m.target)}</span></td></tr>`).join('')}</table></div>` : '<p class="text-gray-500 mb-4">Tasinacak calisan VM yok.</p>';
+                <tr class="border-t" style="border-color:var(--line)"><td class="p-2"><b>${esc(m.vmid)}</b> ${esc(m.name)}${m.excluded_by ? ' <span class="status-badge status-warning" style="padding:1px 6px;font-size:10px">' + esc(tMsg(m.excluded_by.replace('etiket:', ''))) + '</span>' : ''}</td>
+                <td class="p-2 text-gray-400">${esc(m.source)} → <span class="text-gray-100">${esc(m.target)}</span></td></tr>`).join('')}</table></div>` : `<p class="text-gray-500 mb-4">${t('m.none_to_move')}</p>`;
             if (un.length) {
-                body += `<p class="font-medium mb-2" style="color:var(--warn)">Tasinamayacak VM'ler (${un.length}) — ${esc(node)} uzerinde calismaya devam eder</p>
-                    <div class="mb-4 space-y-1">${un.map(u => `<p class="text-xs"><b>${esc(u.vmid)} ${esc(u.name)}</b> — <span class="text-gray-400">${esc(u.reason)}</span></p>`).join('')}</div>`;
+                body += `<p class="font-medium mb-2" style="color:var(--warn)">${t('m.unmovable', { c: un.length, n: esc(node) })}</p>
+                    <div class="mb-4 space-y-1">${un.map(u => `<p class="text-xs"><b>${esc(u.vmid)} ${esc(u.name)}</b> — <span class="text-gray-400">${esc(tMsg(u.reason))}</span></p>`).join('')}</div>`;
             }
-            body += `<p class="font-medium mb-2">Kalan node'larin durumu (tasima sonrasi tahmini RAM)</p><div class="flex flex-wrap gap-3 mb-2">${Object.entries(p.after || {}).map(([n, a]) => `
+            body += `<p class="font-medium mb-2">${t('m.after')}</p><div class="flex flex-wrap gap-3 mb-2">${Object.entries(p.after || {}).map(([n, a]) => `
                 <div class="p-3 rounded-lg" style="background:var(--surface-2)"><p class="text-xs text-gray-400">${esc(n)}</p>
-                <p class="font-semibold" style="color:${a.fits ? 'var(--text)' : 'var(--bad)'}">%${esc((p.before[n] || {}).mem_percent)} → %${esc(a.mem_percent)}</p></div>`).join('')}</div>`;
-            if (!p.fits) body += `<p style="color:var(--bad)">Uyari: kalan node'larin RAM kullanimi sinirin uzerine cikiyor.</p>`;
-            if (maintData && node === maintData.dashboard_node) body += `<p class="text-xs text-gray-500 mt-3">Not: Bu panel ${esc(node)} uzerinde calisiyor; node yeniden baslatilirken panel kisa sure erisilemez.</p>`;
-            if (maintData && maintData.dry_run) body += `<p class="mt-3" style="color:var(--warn)">Dry Run acik: VM'ler gercekte tasinmayacak, sadece test edilecek.</p>`;
-            showMaintModal(`${node} bakima alinsin mi?`, body, `Onayla — ${node} bakima al`, async () => {
+                <p class="font-semibold" style="color:${a.fits ? 'var(--text)' : 'var(--bad)'}">${pct(esc((p.before[n] || {}).mem_percent))} → ${pct(esc(a.mem_percent))}</p></div>`).join('')}</div>`;
+            if (!p.fits) body += `<p style="color:var(--bad)">${t('m.overfull')}</p>`;
+            if (maintData && node === maintData.dashboard_node) body += `<p class="text-xs text-gray-500 mt-3">${t('m.panel_note', { n: esc(node) })}</p>`;
+            if (maintData && maintData.dry_run) body += `<p class="mt-3" style="color:var(--warn)">${t('m.dry_note')}</p>`;
+            showMaintModal(t('m.q_enter', { n: node }), body, t('m.confirm_enter', { n: node }), async () => {
                 const r = await (await fetch('/api/maintenance/enter', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node }) })).json();
-                closeMaintModal(); showToast(r.message || 'Tamam', r.success ? 'success' : 'error'); loadMaintenance();
+                closeMaintModal(); showToast(tMsg(r.message) || t('common.ok'), r.success ? 'success' : 'error'); loadMaintenance();
             });
         }
 
         function openMaintExit(node) {
             const n = (maintData?.nodes || []).find(x => x.name === node) || { drained: [] };
             const body = n.drained.length
-                ? `<p class="text-gray-400 mb-3">Bakim sirasinda tasinan ${n.drained.length} VM, <b>${esc(node)}</b> node'una canli olarak geri tasinacak:</p>
+                ? `<p class="text-gray-400 mb-3">${t('m.exit_list', { c: n.drained.length, n: esc(node) })}</p>
                    <div class="space-y-1 mb-2">${n.drained.map(e => `<p class="text-xs"><b>${esc(e.vmid)} ${esc(e.name)}</b> <span class="text-gray-400">${esc(e.to)} → ${esc(node)}</span></p>`).join('')}</div>`
-                : `<p class="text-gray-400">Geri tasinacak VM kaydi yok; node sadece bakimdan cikarilacak.</p>`;
-            showMaintModal(`${node} bakimdan cikarilsin mi?`, body, 'Onayla — bakimdan cikar', async () => {
+                : `<p class="text-gray-400">${t('m.exit_none')}</p>`;
+            showMaintModal(t('m.q_exit', { n: node }), body, t('m.confirm_exit'), async () => {
                 const r = await (await fetch('/api/maintenance/exit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node }) })).json();
-                closeMaintModal(); showToast(r.message || 'Tamam', r.success ? 'success' : 'error'); loadMaintenance();
+                closeMaintModal(); showToast(tMsg(r.message) || t('common.ok'), r.success ? 'success' : 'error'); loadMaintenance();
             });
         }
 
@@ -1267,6 +1774,7 @@
 
         // Init
         document.addEventListener('DOMContentLoaded', () => {
+            applyI18n();
             initCharts();
             refreshAll();
             setInterval(refreshAll, 30000);

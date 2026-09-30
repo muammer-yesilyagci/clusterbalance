@@ -20,7 +20,8 @@ it out — but only when the move is safe and actually helps. On top of that you
 - a small **widget inside the Proxmox web UI**,
 - a **health API** you can poll for e-mail/Teams/Slack alerts (an n8n workflow is included).
 
-> The dashboard UI is currently in Turkish. Translations are welcome — see [Contributing](#contributing).
+> The dashboard is available in **English and Turkish** (TR/EN switch in the header; defaults to your browser language).
+> Adding a language is one block of strings in `dashboard/templates/index.html` — see [Contributing](#contributing).
 
 ### What's new in v2
 
@@ -329,7 +330,6 @@ sed -i '/clusterbalance.js/d' /usr/share/pve-manager/index.html.tpl; rm -f /usr/
 
 ## Limitations and roadmap
 
-- Dashboard UI is Turkish only (i18n welcome).
 - One cluster per installation; the balancer runs on one node (if that node is down, balancing pauses — HA keeps working).
 - Planned: English UI, per-node history graphs, non-root API token, N-1 capacity card, "movability" view per VM, rule editor for affinity tags.
 

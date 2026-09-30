@@ -20,6 +20,8 @@ taşıma güvenliyse ve gerçekten işe yarıyorsa. Bunun yanında:
 - **Proxmox arayüzünün içinde** küçük bir durum kutusu,
 - e-posta/Teams/Slack uyarıları için sorgulanabilen bir **sağlık API'si** (hazır n8n akışı dahil).
 
+> Panel **Türkçe ve İngilizce** kullanılabilir (üst çubuktaki TR/EN düğmesi; varsayılan tarayıcı dilidir).
+
 ### v2'de neler yeni?
 
 Sürüm 2, Cemal Demirci'nin yazdığı özgün ClusterBalance'ın canlı ortamda sınanmış, sağlamlaştırılmış halidir:
@@ -326,7 +328,6 @@ sed -i '/clusterbalance.js/d' /usr/share/pve-manager/index.html.tpl; rm -f /usr/
 
 ## Kısıtlar ve yol haritası
 
-- Panel arayüzü şimdilik sadece Türkçe (çeviri katkılarına açığız).
 - Kurulum başına tek cluster; dengeleyici tek node'da çalışır (o node kapalıysa dengeleme durur — HA çalışmaya devam eder).
 - Planlananlar: İngilizce arayüz, node başına geçmiş grafikleri, root olmayan API anahtarı, N-1 kapasite kartı, VM başına "taşınabilirlik" görünümü, affinity etiketleri için kural editörü.
 

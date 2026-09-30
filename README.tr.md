@@ -16,6 +16,7 @@ dengeli yüklendiğini ölçer; fark fazlaysa **birkaç VM'i canlı (kesintisiz)
 taşıma güvenliyse ve gerçekten işe yarıyorsa. Bunun yanında:
 
 - bir node'u güncelleme/yeniden başlatma öncesi boşaltan ve sonra her VM'i geri taşıyan **bakım modu**,
+- panelden **yerleşim kuralları**: VM'leri ayrı tut, birlikte tut ya da bir node'a sabitle,
 - cluster sağlığı, taşıma geçmişi ve ayarları içeren bir **web paneli**,
 - **Proxmox arayüzünün içinde** küçük bir durum kutusu,
 - e-posta/Teams/Slack uyarıları için sorgulanabilen bir **sağlık API'si** (hazır n8n akışı dahil).
@@ -27,7 +28,22 @@ taşıma güvenliyse ve gerçekten işe yarıyorsa. Bunun yanında:
 Sürüm 2, Cemal Demirci'nin yazdığı özgün ClusterBalance'ın canlı ortamda sınanmış, sağlamlaştırılmış halidir:
 depolama ve HA'yı dikkate alan güvenlik kontrolleri, ileri-geri taşımaları bitiren simülasyonlu planlama, taşıma penceresi,
 sonucu beklenen taşımalar, otomatik geri dönüşlü bakım modu, sağlık kartları ve taşıma geçmişi olan şifreli HTTPS panel
-ve hazır uyarılar. Ayrıntılar: [CHANGELOG](CHANGELOG.md).
+ve hazır uyarılar.
+
+| | |
+|---|---|
+| 🛡️ **Önce güvenlik** | Her taşımadan önce depolama (paylaşımlı + hedefte bağlı), HA grubu, USB/PCI ve kapasite kontrolü |
+| 🧮 **Akıllı planlama** | Her taşıma simüle edilir; dengeyi gerçekten iyileştirmeli — ileri-geri taşıma biter |
+| 🌙 **Taşıma penceresi** | Gerçek dengeleme taşımaları sadece gece (varsayılan `20:00-07:00`), her biri beklenip doğrulanır |
+| 🔧 **Bakım modu** | Tek tıkla node'u boşalt, güvenle yeniden başlat, VM'ler sonra eski yerine döner |
+| 📏 **Yerleşim kuralları** | Ayrı tut / birlikte tut / node'a sabitle — panelden düzenlenir, ihlaller otomatik düzeltilir |
+| 🩺 **Sağlık kartları ve uyarılar** | Quorum, disk bağlantıları, HA, PBS yedekleri, başarısız görevler; her değişiklikte n8n e-postası |
+| 📜 **Taşıma geçmişi** | Ne, nereye, neden taşındı ve sonuç ne oldu — denge skoru grafiğiyle |
+| 🌍 **Türkçe ve İngilizce** | Panelde TR/EN düğmesi |
+| 🔒 **Güvenli panel** | Proxmox sertifikasıyla HTTPS, giriş, tehlikeli uç noktalar kaldırıldı |
+| ✅ **Test edildi** | Anonimleştirilmiş gerçek cluster verisi üzerinde 76 otomatik test, her push'ta CI |
+
+Ayrıntılar: [CHANGELOG](CHANGELOG.md).
 
 ---
 
@@ -76,6 +92,7 @@ Bu dersler her Proxmox cluster'ı için geçerli olduğu için yayınlıyoruz.
 - Node skoru: kullanılan RAM, CPU, kök disk ve isteğe bağlı I/O (ağırlıklar ayarlanabilir); ya da atanmış kaynaklar ya da PSI.
 - Simülasyonlu planlama, `min_improvement`, çalışma başına `max_migrations`, taşıma penceresi.
 - VM ve hedef node başına güvenlik kontrolleri: paylaşımlı + etkin + bağlı depolama, HA grup kısıtları, USB/PCI, aşırı yüklenme koruması.
+- Panelden düzenlenen [yerleşim kuralları](#yerleşim-kuralları) (ayrı tut / birlikte tut / node'a sabitle); ihlaller dengelemeden önce düzeltilir, dengeleme hiçbir kuralı bozmaz.
 - Etiket kuralları: hariç tut (`kritik`, `critical`, `pinned`, `no-migrate`, `cb_ignore*`), node'a sabitle (`cb_pin_<node>`), birlikte tut (`cb_affinity_<grup>`), ayrı tut (`cb_anti_affinity_<grup>`).
 - Sadece kararları yazan `dry_run` (test) modu — kurulumdan sonra varsayılan.
 
@@ -88,6 +105,8 @@ Bu dersler her Proxmox cluster'ı için geçerli olduğu için yayınlıyoruz.
 - Neden, sonuç, süre ve hata mesajlarıyla taşıma geçmişi; denge skoru grafiği ve ileri-geri tespiti.
 - Ayarlar (eşik, mod, taşıma sayısı, hariç etiketler, dry run), elle test çalıştırma, ham log.
 - Önizlemeli bakım modu ekranı.
+- Her kuralın durumunu canlı gösteren Kurallar sayfası.
+- Türkçe ve İngilizce arayüz (TR/EN düğmesi).
 
 **Proxmox arayüz kutusu** — Proxmox web arayüzünde denge durumunu gösteren ve panele bağlantı veren küçük kutu.
 

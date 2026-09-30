@@ -16,6 +16,7 @@ evenly the nodes are loaded and, if the difference is too big, **live-migrates a
 it out — but only when the move is safe and actually helps. On top of that you get:
 
 - a **maintenance mode** that drains a node before a reboot/upgrade and moves every VM back afterwards,
+- **placement rules** from the dashboard: keep VMs apart, keep them together, or pin them to a node,
 - a **web dashboard** with cluster health, migration history and settings,
 - a small **widget inside the Proxmox web UI**,
 - a **health API** you can poll for e-mail/Teams/Slack alerts (an n8n workflow is included).
@@ -28,7 +29,22 @@ it out — but only when the move is safe and actually helps. On top of that you
 Version 2 is a hardened, production-tested evolution of the original ClusterBalance by Cemal Demirci:
 storage/HA-aware safety checks, simulated planning that stops ping-pong migrations, a migration window,
 awaited migrations, maintenance mode with automatic return, a secured HTTPS dashboard with health cards and
-migration history, and ready-made alerts. See the [CHANGELOG](CHANGELOG.md).
+migration history, and ready-made alerts.
+
+| | |
+|---|---|
+| 🛡️ **Safety first** | Storage (shared + mounted on the target), HA group, USB/PCI and capacity checks before every move |
+| 🧮 **Smarter planning** | Every move is simulated; it must really improve the balance — no more ping-pong |
+| 🌙 **Migration window** | Real balancing moves only at night (`20:00-07:00` by default), each one awaited and verified |
+| 🔧 **Maintenance mode** | Drain a node with one click, reboot safely, every VM goes back afterwards |
+| 📏 **Placement rules** | Keep apart / keep together / pin to node — edited on the dashboard, violations fixed automatically |
+| 🩺 **Health cards & alerts** | Quorum, storage mounts, HA, PBS backups, failed tasks; n8n e-mail on every change |
+| 📜 **Migration history** | What moved, where, why, and whether it worked — with a balance-score chart |
+| 🌍 **English & Turkish** | TR/EN switch in the dashboard |
+| 🔒 **Secured dashboard** | HTTPS with the Proxmox certificate, login, dangerous endpoints removed |
+| ✅ **Tested** | 76 automated tests on an anonymized real cluster snapshot, CI on every push |
+
+See the [CHANGELOG](CHANGELOG.md) for details.
 
 ---
 
@@ -77,6 +93,7 @@ We are publishing it because these lessons apply to any Proxmox cluster.
 - Node score from used memory, CPU, root disk and optional I/O (weights configurable), or assigned resources, or PSI.
 - Greedy planning with simulation, `min_improvement`, `max_migrations` per run, migration window.
 - Safety checks per VM and target node: shared + enabled + mounted storage, HA group restrictions, USB/PCI passthrough, overprovisioning protection.
+- [Placement rules](#placement-rules) edited on the dashboard (keep apart / keep together / pin to node); violations are fixed before balancing and balancing never breaks a rule.
 - Tag based rules: exclude (`kritik`, `critical`, `pinned`, `no-migrate`, `cb_ignore*`), pin to a node (`cb_pin_<node>`), affinity (`cb_affinity_<group>`) and anti-affinity (`cb_anti_affinity_<group>`).
 - `dry_run` mode that only logs decisions — the default after installation.
 
@@ -89,6 +106,8 @@ We are publishing it because these lessons apply to any Proxmox cluster.
 - Migration history with reasons, results, duration, errors, balance-score chart and ping-pong detection.
 - Settings (threshold, mode, max migrations, excluded tags, dry run), manual dry-run, raw log.
 - Maintenance mode UI with preview.
+- Rules page with live status of every rule.
+- English and Turkish UI (TR/EN switch).
 
 **Proxmox UI widget** — a small box in the Proxmox web interface with the cluster balance status and a link to the dashboard.
 

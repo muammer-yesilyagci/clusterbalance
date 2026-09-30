@@ -155,7 +155,7 @@ def test_config_roundtrip_keeps_unknown_keys(client):
     body = {**g, "threshold": 20, "mode": "memory", "migration_type": "offline",
             "exclude_tags": "kritik, critical", "evil_key": "x"}
     assert client.post("/api/config", headers=AUTH, json=body).json["success"]
-    saved = yaml.safe_load(client.cfg_path.read_text())
+    saved = yaml.safe_load(client.cfg_path.read_text(encoding="utf-8"))
     assert saved["balanciness_threshold"] == 20 and saved["method"] == "memory"
     assert saved["migration_type"] == "offline" and saved["exclude_tags"] == ["kritik", "critical"]
     assert saved["notifications"]["smtp"]["password"] == "keep-me"
@@ -167,7 +167,7 @@ def test_config_roundtrip_keeps_unknown_keys(client):
 def test_maintenance_enter_exit(client, app_mod):
     r = client.post("/api/maintenance/enter", headers=AUTH, json={"node": "pve3"})
     assert r.json["success"]
-    assert yaml.safe_load(client.cfg_path.read_text())["maintenance_nodes"] == ["pve3"]
+    assert yaml.safe_load(client.cfg_path.read_text(encoding="utf-8"))["maintenance_nodes"] == ["pve3"]
     # only one node at a time
     r = client.post("/api/maintenance/enter", headers=AUTH, json={"node": "pve1"})
     assert r.status_code == 409
@@ -182,10 +182,75 @@ def test_maintenance_enter_exit(client, app_mod):
     assert m["dashboard_node"] == "pve1"
 
     assert client.post("/api/maintenance/exit", headers=AUTH, json={"node": "pve3"}).json["success"]
-    assert yaml.safe_load(client.cfg_path.read_text())["maintenance_nodes"] == []
+    assert yaml.safe_load(client.cfg_path.read_text(encoding="utf-8"))["maintenance_nodes"] == []
     with open(app_mod.CB_STATE_FILE) as f:
         assert json.load(f)["return_requested"] == ["pve3"]
 
 
 def test_maintenance_preview_rejects_bad_node_name(client):
     assert client.get("/api/maintenance/preview?node=../etc", headers=AUTH).status_code == 400
+
+
+# ---------------------------------------------------------------- placement rules API
+
+def test_rules_get_shows_status_and_tag_rules(client, pve):
+    for r in pve.resources:
+        if r.get("vmid") in (141, 151):
+            r["tags"] = (r.get("tags") or "") + ";cb_anti_affinity_web"
+    cfg = yaml.safe_load(client.cfg_path.read_text(encoding="utf-8"))
+    cfg["rules"] = [{"name": "files-pve3", "type": "pin", "vms": [121], "node": "pve3"},
+                    {"name": "dc-erp", "type": "anti-affinity", "vms": [110, 500]}]
+    client.cfg_path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    d = client.get("/api/rules", headers=AUTH).json
+    st = {r["name"]: r["status"] for r in d["rules"]}
+    assert st["files-pve3"] == {"ok": False, "bad": [121], "missing": []}
+    assert st["dc-erp"]["ok"] is True
+    assert [(r["name"], r["vms"], r["status"]["bad"]) for r in d["tag_rules"]] == [("cb_anti_affinity_web", [141, 151], [151])]
+    assert d["nodes"] == ["pve1", "pve2", "pve3"] and any(v["vmid"] == 500 for v in d["vms"])
+
+
+def test_rules_save_valid(client):
+    rules = [{"name": "Ayrı DC'ler", "type": "anti-affinity", "vms": [110, "500"]},
+             {"name": "pin", "type": "pin", "vms": [121], "node": "pve3", "enabled": False, "junk": 1}]
+    r = client.post("/api/rules", headers=AUTH, json={"rules": rules})
+    assert r.json == {"success": True, "count": 2}
+    saved = yaml.safe_load(client.cfg_path.read_text(encoding="utf-8"))
+    assert saved["rules"] == [{"name": "Ayrı DC'ler", "type": "anti-affinity", "vms": [110, 500], "enabled": True},
+                              {"name": "pin", "type": "pin", "vms": [121], "node": "pve3", "enabled": False}]
+    assert saved["notifications"]["smtp"]["password"] == "keep-me"   # rest of the config untouched
+
+
+@pytest.mark.parametrize("rules,code", [
+    ("nope", "format"),
+    ([{"name": "", "type": "pin", "vms": [121], "node": "pve1"}], "name"),
+    ([{"name": "a/b", "type": "pin", "vms": [121], "node": "pve1"}], "name"),
+    ([{"name": "x", "type": "pin", "vms": [121], "node": "pve1"}, {"name": "x", "type": "pin", "vms": [131], "node": "pve1"}], "dup_name"),
+    ([{"name": "x", "type": "spread", "vms": [121, 131]}], "type"),
+    ([{"name": "x", "type": "affinity", "vms": [121]}], "min_vms"),
+    ([{"name": "x", "type": "affinity", "vms": [121, 99999]}], "vm"),
+    ([{"name": "x", "type": "pin", "vms": [121], "node": "pve9"}], "node"),
+    ([{"name": f"r{i}", "type": "pin", "vms": [121], "node": "pve1"} for i in range(101)], "too_many"),
+])
+def test_rules_save_rejects_invalid(client, rules, code):
+    before = client.cfg_path.read_text(encoding="utf-8")
+    r = client.post("/api/rules", headers=AUTH, json={"rules": rules})
+    assert r.status_code == 400 and r.json["error"] == code
+    assert client.cfg_path.read_text(encoding="utf-8") == before
+
+
+def test_history_parses_rule_moves(app_mod, client):
+    ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log = "\n".join([
+        f"{ts},000 [INFO] ClusterBalance - Starting balance run",
+        f"{ts},001 [INFO] Current balanciness: 4.00 (threshold: 15)",
+        f"{ts},002 [INFO] Rule move planned: 151 (render-02) pve1 -> pve2, rule 'web apart' (anti-affinity)",
+        f"{ts},003 [WARNING] Kural 'erp-pve1': VM 300 (erp-01) duzeltilemiyor: haric tutuluyor (etiket:kritik)",
+        f"{ts},004 [INFO] Migrating 151 (render-02) from pve1 to pve2",
+        f"{ts},900 [INFO] Migration completed: 151 is running on pve2",
+    ]) + "\n"
+    with open(app_mod.CB_LOG, "w") as f:
+        f.write(log)
+    d = app_mod.parse_cb_history(24)
+    m = d["migrations"][0]
+    assert (m["reason"], m["rule"], m["rule_type"], m["result"]) == ("rule", "web apart", "anti-affinity", "basarili")
+    assert d["last_run"]["rule_unfixable"] == {"300": {"rule": "erp-pve1", "name": "erp-01", "reason": "haric tutuluyor (etiket:kritik)"}}

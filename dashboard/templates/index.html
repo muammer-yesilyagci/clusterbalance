@@ -41,7 +41,7 @@
         .btn-orange:hover { background: #2563eb; }
         .btn-secondary { background: var(--surface-2); border: 1px solid var(--line); color: var(--text); }
         .btn-secondary:hover { background: #232934; }
-        .toggle-switch { position: relative; width: 48px; height: 24px; }
+        .toggle-switch { position: relative; display: inline-block; width: 48px; height: 24px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
         .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #2a303a; border-radius: 24px; transition: 0.3s; }
         .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
@@ -104,6 +104,9 @@
             <a href="#" onclick="showPage('balance')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="balance">
                 <i class="fas fa-balance-scale w-5"></i> <span data-i18n="nav.balance">Dengeleme</span>
             </a>
+            <a href="#" onclick="showPage('rules')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="rules">
+                <i class="fas fa-list-check w-5"></i> <span data-i18n="nav.rules">Kurallar</span>
+            </a>
             <a href="#" onclick="showPage('monitor')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="monitor">
                 <i class="fas fa-chart-line w-5"></i> <span data-i18n="nav.monitor">İzleme</span>
             </a>
@@ -113,7 +116,7 @@
             </a>
         </nav>
         <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
-            <p class="text-xs text-gray-500 text-center"><a href="https://github.com/muammer-yesilyagci/clusterbalance" id="gh-link" target="_blank" class="hover:text-gray-300">ClusterBalance v2.0</a></p>
+            <p class="text-xs text-gray-500 text-center"><a href="https://github.com/muammer-yesilyagci/clusterbalance" id="gh-link" target="_blank" class="hover:text-gray-300">ClusterBalance v2.1</a></p>
         </div>
     </aside>
 
@@ -344,6 +347,98 @@
                 <div class="glass rounded-xl p-6 border border-white/10 mt-6">
                     <h3 class="font-semibold mb-4" data-i18n="bal.recs">Dengeleme Önerileri</h3>
                     <div id="balanceRecs" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Rules Page -->
+            <div id="page-rules" class="page">
+                <div class="glass rounded-xl p-6 border">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center"><i class="fas fa-list-check"></i></div>
+                            <div>
+                                <h3 class="font-semibold" data-i18n="r.title">Yerleşim Kuralları</h3>
+                                <p class="text-xs text-gray-400" data-i18n="r.sub">Hangi VM'ler ayrı tutulmalı, hangileri birlikte kalmalı, hangisi belirli bir node'da durmalı</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <button onclick="toggleRulesInfo()" data-i18n-title="r.how_q" title="Kurallar nasıl uygulanır?" class="px-3 py-1.5 btn-secondary rounded-lg"><i class="fas fa-circle-info"></i> <span data-i18n="common.info">Bilgi</span></button>
+                            <button onclick="openRuleEditor(-1)" class="px-3 py-1.5 btn-orange rounded-lg font-medium"><i class="fas fa-plus"></i> <span data-i18n="r.new">Yeni kural</span></button>
+                        </div>
+                    </div>
+                    <div id="rules-info" class="hidden p-4 rounded-lg mb-4 text-xs border" style="background:var(--surface-2);border-color:var(--line)">
+                        <p class="text-sm text-gray-300 font-medium mb-3"><i class="fas fa-circle-info text-gray-400"></i> <span data-i18n="r.how_q">Kurallar nasıl uygulanır?</span></p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-300">
+                            <div>
+                                <p class="font-semibold text-gray-100 mb-1" data-i18n="r.i_types">Kural türleri</p>
+                                <p><b data-i18n="r.type.anti-affinity">Ayrı tut</b> — <span data-i18n="r.d.anti-affinity">Seçilen VM'ler asla aynı node'da çalışmaz (ör. iki domain controller).</span></p>
+                                <p class="mt-1"><b data-i18n="r.type.affinity">Birlikte tut</b> — <span data-i18n="r.d.affinity">Seçilen VM'ler hep aynı node'da çalışır (ör. uygulama + veritabanı).</span></p>
+                                <p class="mt-1"><b data-i18n="r.type.pin">Node'a sabitle</b> — <span data-i18n="r.d.pin">Seçilen VM'ler yalnızca seçilen node'da çalışır.</span></p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-100 mb-1" data-i18n="r.i_apply">Nasıl uygulanır?</p>
+                                <p data-i18n="r.i_apply1">Dengeleyici her çalışmada kuralları kontrol eder. İhlal varsa önce onu düzeltir, sonra dengeler; dengeleme hiçbir kuralı bozmaz.</p>
+                                <p class="mt-1" data-i18n-html="r.i_apply2">Düzeltme taşımaları da <b>taşıma penceresine</b> ve <b>çalışma başına taşıma sınırına</b> uyar; Dry Run açıkken sadece planlanır.</p>
+                                <p class="mt-1" data-i18n="r.i_apply3">Hariç tutulan VM'ler ("kritik" gibi etiketler, USB/PCI bağlı) kural için bile taşınmaz; bunlar "düzeltilemeyen" olarak listelenir.</p>
+                                <p class="mt-1" data-i18n="r.i_apply4">Proxmox etiketleriyle tanımlanan kurallar (cb_anti_affinity_…, cb_affinity_…, cb_pin_…) da geçerlidir ve aşağıda salt okunur listelenir.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="rules-notes" class="space-y-2 mb-4 text-sm"></div>
+                    <div class="overflow-x-auto rounded-lg border" style="border-color:var(--line)">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-gray-400" style="background:var(--surface-2)">
+                                <tr>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="tbl.name">Ad</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="r.th_type">Tür</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="r.th_vms">VM'ler</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="tbl.status">Durum</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="lb.enabled">Aktif</th>
+                                    <th class="p-2.5"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="rules-body"><tr><td colspan="6" class="p-4 text-center text-gray-500"><span data-i18n="common.loading">Yükleniyor...</span></td></tr></tbody>
+                        </table>
+                    </div>
+                    <div id="rules-unfix" class="hidden mt-4"></div>
+                    <div id="rules-tags" class="hidden mt-6"></div>
+                </div>
+
+                <!-- Kural duzenleme penceresi -->
+                <div id="rule-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:rgba(0,0,0,0.6)">
+                    <div class="glass rounded-xl border w-full max-w-2xl mt-12 p-6" style="background:var(--surface)">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 id="rule-modal-title" class="font-semibold text-lg"></h3>
+                            <button onclick="closeRuleEditor()" class="text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="space-y-4 text-sm">
+                            <div>
+                                <label class="block text-gray-400 mb-1" data-i18n="r.f_name">Kural adı</label>
+                                <input id="rule-name" maxlength="40" data-i18n-placeholder="r.f_name_ph" placeholder="ör. dc-ayri" class="w-full px-3 py-2 rounded-lg border">
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 mb-1" data-i18n="r.th_type">Tür</label>
+                                <div id="rule-types" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
+                            </div>
+                            <div id="rule-node-row">
+                                <label class="block text-gray-400 mb-1" data-i18n="r.f_node">Hedef node</label>
+                                <select id="rule-node" class="w-full px-3 py-2 rounded-lg border"></select>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label id="rule-vms-label" class="text-gray-400"></label>
+                                    <input id="rule-search" oninput="renderRuleVms()" data-i18n-placeholder="r.f_search" placeholder="VM ara..." class="px-2 py-1 rounded border text-xs">
+                                </div>
+                                <div id="rule-vms" class="rounded-lg border max-h-64 overflow-y-auto hist-scroll" style="border-color:var(--line)"></div>
+                            </div>
+                            <label class="flex items-center gap-2"><input type="checkbox" id="rule-enabled"> <span data-i18n="lb.enabled">Aktif</span></label>
+                            <p id="rule-error" class="hidden" style="color:var(--bad)"></p>
+                        </div>
+                        <div class="flex justify-end gap-3 mt-6">
+                            <button onclick="closeRuleEditor()" class="px-4 py-2 btn-secondary rounded-lg" data-i18n="common.cancel">Vazgeç</button>
+                            <button onclick="saveRuleEditor()" class="px-4 py-2 btn-orange rounded-lg font-medium" data-i18n="lb.save">Kaydet</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -827,7 +922,60 @@
                 "m.q_exit": "{n} bakımdan çıkarılsın mı?",
                 "m.exit_list": "Bakım sırasında taşınan {c} VM, <b>{n}</b> node'una canlı olarak geri taşınacak:",
                 "m.exit_none": "Geri taşınacak VM kaydı yok; node sadece bakımdan çıkarılacak.",
-                "m.confirm_exit": "Onayla — bakımdan çıkar"
+                "m.confirm_exit": "Onayla — bakımdan çıkar",
+                "nav.rules": "Kurallar",
+                "r.title": "Yerleşim Kuralları",
+                "r.sub": "Hangi VM'ler ayrı tutulmalı, hangileri birlikte kalmalı, hangisi belirli bir node'da durmalı",
+                "r.new": "Yeni kural",
+                "r.how_q": "Kurallar nasıl uygulanır?",
+                "r.i_types": "Kural türleri",
+                "r.type.anti-affinity": "Ayrı tut",
+                "r.type.affinity": "Birlikte tut",
+                "r.type.pin": "Node'a sabitle",
+                "r.d.anti-affinity": "Seçilen VM'ler asla aynı node'da çalışmaz (ör. iki domain controller).",
+                "r.d.affinity": "Seçilen VM'ler hep aynı node'da çalışır (ör. uygulama + veritabanı).",
+                "r.d.pin": "Seçilen VM'ler yalnızca seçilen node'da çalışır.",
+                "r.i_apply": "Nasıl uygulanır?",
+                "r.i_apply1": "Dengeleyici her çalışmada kuralları kontrol eder. İhlal varsa önce onu düzeltir, sonra dengeler; dengeleme hiçbir kuralı bozmaz.",
+                "r.i_apply2": "Düzeltme taşımaları da <b>taşıma penceresine</b> ve <b>çalışma başına taşıma sınırına</b> uyar; Dry Run açıkken sadece planlanır.",
+                "r.i_apply3": "Hariç tutulan VM'ler (\"kritik\" gibi etiketler, USB/PCI bağlı) kural için bile taşınmaz; bunlar \"düzeltilemeyen\" olarak listelenir.",
+                "r.i_apply4": "Proxmox etiketleriyle tanımlanan kurallar (cb_anti_affinity_…, cb_affinity_…, cb_pin_…) da geçerlidir ve aşağıda salt okunur listelenir.",
+                "r.enforce_off": "Kural uygulama kapalı (enforce_rules: false): ihlaller gösterilir ama düzeltilmez.",
+                "r.dry": "Dry Run açık: düzeltme taşımaları sadece planlanır, yapılmaz.",
+                "r.th_type": "Tür",
+                "r.th_vms": "VM'ler",
+                "r.none": "Henüz kural yok. \"Yeni kural\" ile ekleyin.",
+                "r.ok": "Uygun",
+                "r.violated": "İhlal: {vms}",
+                "r.will_fix": "dengeleyici düzeltecek",
+                "r.off": "Kapalı",
+                "r.missing": "Bulunamayan VM: {vms}",
+                "r.edit": "Düzenle",
+                "r.delete": "Sil",
+                "r.del_q": "\"{n}\" kuralı silinsin mi?",
+                "r.tag_title": "Etiketle tanımlı kurallar",
+                "r.tag_hint": "Değiştirmek için Proxmox'ta VM etiketlerini düzenleyin.",
+                "r.unfix_title": "Son çalışmada düzeltilemeyenler",
+                "r.m_new": "Yeni kural",
+                "r.m_edit": "Kuralı düzenle",
+                "r.f_name": "Kural adı",
+                "r.f_name_ph": "ör. dc-ayri",
+                "r.f_vms": "VM'ler ({n} seçili)",
+                "r.f_search": "VM ara...",
+                "r.f_node": "Hedef node",
+                "r.excluded": "hariç",
+                "r.stopped": "kapalı",
+                "r.saved": "Kurallar kaydedildi",
+                "r.err.format": "Geçersiz istek",
+                "r.err.config": "Config okunamadı",
+                "r.err.name": "Kural adı 1-40 karakter olmalı (harf, rakam, boşluk, . - ')",
+                "r.err.dup_name": "\"{name}\" adında başka bir kural var",
+                "r.err.type": "Geçersiz kural türü",
+                "r.err.min_vms": "\"{name}\": yeterli VM seçilmedi (sabitleme için en az 1, diğerleri için en az 2)",
+                "r.err.vm": "\"{name}\": seçilen bir VM artık yok",
+                "r.err.node": "\"{name}\": geçerli bir node seçin",
+                "r.err.too_many": "En fazla 100 kural tanımlanabilir",
+                "h.r_rule": "Kural: <b>{name}</b> ({type})"
             },
             en: {
                 "nav.dashboard": "Dashboard",
@@ -1042,7 +1190,60 @@
                 "m.q_exit": "Take {n} out of maintenance?",
                 "m.exit_list": "The {c} VMs moved during maintenance will be live-migrated back to <b>{n}</b>:",
                 "m.exit_none": "No VMs to move back; the node will just leave maintenance.",
-                "m.confirm_exit": "Confirm — exit maintenance"
+                "m.confirm_exit": "Confirm — exit maintenance",
+                "nav.rules": "Rules",
+                "r.title": "Placement Rules",
+                "r.sub": "Which VMs must be kept apart, kept together, or stay on a given node",
+                "r.new": "New rule",
+                "r.how_q": "How are rules applied?",
+                "r.i_types": "Rule types",
+                "r.type.anti-affinity": "Keep apart",
+                "r.type.affinity": "Keep together",
+                "r.type.pin": "Pin to node",
+                "r.d.anti-affinity": "The selected VMs never run on the same node (e.g. two domain controllers).",
+                "r.d.affinity": "The selected VMs always run on the same node (e.g. app + database).",
+                "r.d.pin": "The selected VMs only run on the chosen node.",
+                "r.i_apply": "How they are applied",
+                "r.i_apply1": "On every run the balancer checks the rules. It fixes violations first, then balances; balancing never breaks a rule.",
+                "r.i_apply2": "Fixes also respect the <b>migration window</b> and the <b>per-run migration limit</b>; with Dry Run on they are only planned.",
+                "r.i_apply3": "Excluded VMs (tags like \"kritik\", USB/PCI attached) are never moved, not even for a rule; they are listed as \"cannot fix\".",
+                "r.i_apply4": "Rules defined with Proxmox tags (cb_anti_affinity_…, cb_affinity_…, cb_pin_…) apply too and are listed read-only below.",
+                "r.enforce_off": "Rule enforcement is off (enforce_rules: false): violations are shown but not fixed.",
+                "r.dry": "Dry Run is on: fixes are only planned, not executed.",
+                "r.th_type": "Type",
+                "r.th_vms": "VMs",
+                "r.none": "No rules yet. Add one with \"New rule\".",
+                "r.ok": "OK",
+                "r.violated": "Violated: {vms}",
+                "r.will_fix": "the balancer will fix it",
+                "r.off": "Off",
+                "r.missing": "VM not found: {vms}",
+                "r.edit": "Edit",
+                "r.delete": "Delete",
+                "r.del_q": "Delete rule \"{n}\"?",
+                "r.tag_title": "Rules defined by tags",
+                "r.tag_hint": "Edit the VM tags in Proxmox to change these.",
+                "r.unfix_title": "Could not be fixed in the last run",
+                "r.m_new": "New rule",
+                "r.m_edit": "Edit rule",
+                "r.f_name": "Rule name",
+                "r.f_name_ph": "e.g. dcs-apart",
+                "r.f_vms": "VMs ({n} selected)",
+                "r.f_search": "Search VMs...",
+                "r.f_node": "Target node",
+                "r.excluded": "excluded",
+                "r.stopped": "stopped",
+                "r.saved": "Rules saved",
+                "r.err.format": "Invalid request",
+                "r.err.config": "Could not read config",
+                "r.err.name": "The rule name must be 1-40 characters (letters, digits, space, . - ')",
+                "r.err.dup_name": "Another rule is already named \"{name}\"",
+                "r.err.type": "Invalid rule type",
+                "r.err.min_vms": "\"{name}\": not enough VMs (at least 1 to pin, at least 2 otherwise)",
+                "r.err.vm": "\"{name}\": a selected VM no longer exists",
+                "r.err.node": "\"{name}\": choose a valid node",
+                "r.err.too_many": "At most 100 rules can be defined",
+                "h.r_rule": "Rule: <b>{name}</b> ({type})"
             },
         };
         let LANG = 'tr';
@@ -1109,7 +1310,7 @@
             document.getElementById('pageTitle').textContent = t('nav.' + currentPage);
             for (const c of [chartCpuMonitor, chartMemMonitor, chartDiskMonitor]) if (c) { c.data.labels = [t('mon.used'), t('mon.free')]; c.update(); }
             if (chartHistory) { chartHistory.data.datasets[0].label = t('h.ds_score'); chartHistory.data.datasets[1].label = t('h.ds_thr'); }
-            renderHistory(); renderMaintenance(); refreshAll();
+            renderHistory(); renderMaintenance(); renderRules(); refreshAll();
         }
 
         let chartDist, chartResource, chartCpuMonitor, chartMemMonitor, chartDiskMonitor;
@@ -1129,6 +1330,7 @@
             if (page === 'monitor') { initMonitorCharts(); loadDistribution(); }
             if (page === 'settings') { loadConfig(); loadRepoStatus(); loadBalanceLog(); loadHistory(); }
             if (page === 'nodes') { loadMaintenance(); }
+            if (page === 'rules') { loadRules(); }
         }
 
         function toggleSidebar() {
@@ -1633,6 +1835,7 @@
                     ? t('h.r_balance', { a: m.bal_before, b: m.bal_after, t: m.threshold ?? '-' })
                     : m.reason === 'maintenance' ? t('h.r_maint')
                     : m.reason === 'maintenance_return' ? t('h.r_return')
+                    : m.reason === 'rule' ? t('h.r_rule', { name: esc(m.rule), type: t('r.type.' + m.rule_type) })
                     : `<span class="text-gray-500">${t('h.r_legacy')}${m.bal_before != null ? t('h.r_score', { s: m.bal_before }) : ''}</span>`;
                 const err = m.error ? `<p class="text-xs mt-1" style="color:#f87171">${esc(friendlyError(m.error))}</p>` : '';
                 const dur = m.duration_s != null ? `<span class="text-xs text-gray-500 ml-1">${fmtDur(m.duration_s)}</span>` : '';
@@ -1761,6 +1964,178 @@
             });
         }
 
+
+        // ============ Yerlesim kurallari ============
+        let rulesData = null, ruleEdit = null;
+        const RULE_TYPES = ['anti-affinity', 'affinity', 'pin'];
+        const RULE_ICON = { 'anti-affinity': 'fa-arrows-left-right', affinity: 'fa-link', pin: 'fa-thumbtack' };
+
+        function toggleRulesInfo(force) {
+            const el = document.getElementById('rules-info');
+            const show = force !== undefined ? force : el.classList.contains('hidden');
+            el.classList.toggle('hidden', !show);
+            try { localStorage.setItem('rulesInfo', show ? '1' : '0'); } catch (e) {}
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            try { if (localStorage.getItem('rulesInfo') !== '0') toggleRulesInfo(true); } catch (e) {}
+        });
+
+        async function loadRules() {
+            try {
+                rulesData = await (await fetch('/api/rules')).json();
+                renderRules();
+            } catch (e) {
+                document.getElementById('rules-body').innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500">${esc(t('common.error', { e }))}</td></tr>`;
+            }
+        }
+
+        function vmLabel(vmid) {
+            const v = (rulesData?.vms || []).find(x => x.vmid === vmid);
+            return v ? `<b>${esc(vmid)}</b> ${esc(v.name)} <span class="text-gray-500">@${esc(v.node)}</span>` : `<b>${esc(vmid)}</b> <span style="color:var(--bad)">?</span>`;
+        }
+
+        function ruleStatusHtml(r) {
+            if (!r.enabled) return `<span class="status-badge" style="background:rgba(255,255,255,0.06);color:var(--muted)">${t('r.off')}</span>`;
+            const st = r.status || {};
+            let h = st.ok ? `<span class="status-badge status-success"><i class="fas fa-check-circle text-xs"></i> ${t('r.ok')}</span>`
+                : `<span class="status-badge status-warning"><i class="fas fa-exclamation-circle text-xs"></i> ${t('r.violated', { vms: st.bad.join(', ') })}</span>
+                   <p class="text-xs text-gray-500 mt-1">${t('r.will_fix')}</p>`;
+            if ((st.missing || []).length) h += `<p class="text-xs mt-1" style="color:var(--bad)">${t('r.missing', { vms: st.missing.join(', ') })}</p>`;
+            return h;
+        }
+
+        function ruleTypeHtml(r) {
+            return `<span class="whitespace-nowrap"><i class="fas ${RULE_ICON[r.type]} text-gray-400 mr-1"></i>${t('r.type.' + r.type)}</span>` +
+                (r.type === 'pin' ? ` <span class="text-gray-500">→ ${esc(r.node)}</span>` : '');
+        }
+
+        function renderRules() {
+            const d = rulesData;
+            if (!d) return;
+            const notes = [];
+            if (!d.enforce) notes.push(`<p style="color:var(--warn)"><i class="fas fa-triangle-exclamation"></i> ${t('r.enforce_off')}</p>`);
+            if (d.dry_run) notes.push(`<p style="color:var(--warn)"><i class="fas fa-flask"></i> ${t('r.dry')}</p>`);
+            document.getElementById('rules-notes').innerHTML = notes.join('');
+
+            document.getElementById('rules-body').innerHTML = d.rules.length ? d.rules.map((r, i) => `
+                <tr class="border-t align-top" style="border-color:var(--line)">
+                    <td class="p-2.5 font-medium">${esc(r.name)}</td>
+                    <td class="p-2.5">${ruleTypeHtml(r)}</td>
+                    <td class="p-2.5 space-y-0.5">${r.vms.map(v => `<p>${vmLabel(v)}</p>`).join('')}</td>
+                    <td class="p-2.5">${ruleStatusHtml(r)}</td>
+                    <td class="p-2.5"><label class="toggle-switch"><input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule(${i}, this.checked)"><span class="toggle-slider"></span></label></td>
+                    <td class="p-2.5 whitespace-nowrap text-right">
+                        <button onclick="openRuleEditor(${i})" class="px-2 py-1 btn-secondary rounded text-xs" title="${t('r.edit')}"><i class="fas fa-pen"></i></button>
+                        <button onclick="deleteRule(${i})" class="px-2 py-1 btn-secondary rounded text-xs" title="${t('r.delete')}"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-500">${esc(t('r.none'))}</td></tr>`;
+
+            const un = Object.entries(d.unfixable || {});
+            const unEl = document.getElementById('rules-unfix');
+            unEl.classList.toggle('hidden', !un.length);
+            unEl.innerHTML = un.length ? `<p class="text-sm font-medium mb-2" style="color:var(--warn)"><i class="fas fa-triangle-exclamation"></i> ${t('r.unfix_title')}</p>
+                <div class="text-xs space-y-1">${un.map(([v, u]) => `<p><b>${esc(v)} ${esc(u.name)}</b> <span class="text-gray-500">(${esc(u.rule)})</span> — <span class="text-gray-400">${esc(tMsg(u.reason))}</span></p>`).join('')}</div>` : '';
+
+            const tagEl = document.getElementById('rules-tags');
+            tagEl.classList.toggle('hidden', !d.tag_rules.length);
+            tagEl.innerHTML = d.tag_rules.length ? `<p class="text-sm font-medium mb-1">${t('r.tag_title')}</p><p class="text-xs text-gray-500 mb-2">${t('r.tag_hint')}</p>
+                <div class="overflow-x-auto rounded-lg border" style="border-color:var(--line)"><table class="w-full text-sm">${d.tag_rules.map(r => `
+                <tr class="border-t align-top" style="border-color:var(--line)">
+                    <td class="p-2.5 font-mono text-xs">${esc(r.name)}</td><td class="p-2.5">${ruleTypeHtml(r)}</td>
+                    <td class="p-2.5 space-y-0.5">${r.vms.map(v => `<p>${vmLabel(v)}</p>`).join('')}</td><td class="p-2.5">${ruleStatusHtml(r)}</td></tr>`).join('')}</table></div>` : '';
+        }
+
+        function plainRules() {
+            return rulesData.rules.map(r => ({ name: r.name, type: r.type, vms: r.vms, enabled: r.enabled, ...(r.type === 'pin' ? { node: r.node } : {}) }));
+        }
+
+        async function saveRules(rules) {
+            let r;
+            try {
+                r = await (await fetch('/api/rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rules }) })).json();
+            } catch (e) { r = { success: false, error: 'format' }; }
+            if (!r.success) return t('r.err.' + (r.error || 'format'), { name: r.rule || '' });
+            showToast(t('r.saved'), 'success');
+            await loadRules();
+            return null;
+        }
+
+        async function toggleRule(i, on) {
+            const rules = plainRules();
+            rules[i].enabled = on;
+            const err = await saveRules(rules);
+            if (err) { showToast(err, 'error'); renderRules(); }
+        }
+
+        async function deleteRule(i) {
+            if (!confirm(t('r.del_q', { n: rulesData.rules[i].name }))) return;
+            const rules = plainRules();
+            rules.splice(i, 1);
+            const err = await saveRules(rules);
+            if (err) showToast(err, 'error');
+        }
+
+        function openRuleEditor(i) {
+            if (!rulesData) return;
+            const r = i >= 0 ? rulesData.rules[i] : { name: '', type: 'anti-affinity', vms: [], node: rulesData.nodes[0] || '', enabled: true };
+            ruleEdit = { index: i, type: r.type, vms: new Set(r.vms) };
+            document.getElementById('rule-modal-title').textContent = t(i >= 0 ? 'r.m_edit' : 'r.m_new');
+            document.getElementById('rule-name').value = r.name;
+            document.getElementById('rule-enabled').checked = r.enabled;
+            document.getElementById('rule-search').value = '';
+            document.getElementById('rule-node').innerHTML = rulesData.nodes.map(n => `<option value="${esc(n)}" ${n === r.node ? 'selected' : ''}>${esc(n)}</option>`).join('');
+            document.getElementById('rule-error').classList.add('hidden');
+            renderRuleTypes(); renderRuleVms();
+            document.getElementById('rule-modal').classList.remove('hidden');
+            document.getElementById('rule-name').focus();
+        }
+
+        function closeRuleEditor() { document.getElementById('rule-modal').classList.add('hidden'); ruleEdit = null; }
+
+        function setRuleType(type) { ruleEdit.type = type; renderRuleTypes(); }
+
+        function renderRuleTypes() {
+            document.getElementById('rule-types').innerHTML = RULE_TYPES.map(ty => `
+                <button type="button" onclick="setRuleType('${ty}')" class="text-left p-3 rounded-lg border ${ruleEdit.type === ty ? '' : 'btn-secondary'}"
+                    style="${ruleEdit.type === ty ? 'border-color:var(--accent);background:var(--accent-soft)' : ''}">
+                    <p class="font-medium"><i class="fas ${RULE_ICON[ty]} mr-1"></i> ${t('r.type.' + ty)}</p>
+                    <p class="text-xs text-gray-400 mt-1">${t('r.d.' + ty)}</p></button>`).join('');
+            document.getElementById('rule-node-row').classList.toggle('hidden', ruleEdit.type !== 'pin');
+        }
+
+        function renderRuleVms() {
+            const q = document.getElementById('rule-search').value.toLowerCase();
+            const excl = (rulesData.exclude_tags || []).map(x => x.toLowerCase());
+            const vms = rulesData.vms.filter(v => ruleEdit.vms.has(v.vmid) || !q || String(v.vmid).includes(q) || v.name.toLowerCase().includes(q));
+            document.getElementById('rule-vms-label').textContent = t('r.f_vms', { n: ruleEdit.vms.size });
+            document.getElementById('rule-vms').innerHTML = vms.map(v => {
+                const isExcl = v.tags.some(x => excl.includes(x.toLowerCase()));
+                return `<label class="flex items-center gap-2 px-3 py-1.5 border-t cursor-pointer hover:bg-white/5" style="border-color:var(--line)">
+                    <input type="checkbox" ${ruleEdit.vms.has(v.vmid) ? 'checked' : ''} onchange="toggleRuleVm(${v.vmid}, this.checked)">
+                    <span class="w-12 text-gray-400">${esc(v.vmid)}</span><span class="flex-1">${esc(v.name)}</span>
+                    ${isExcl ? `<span class="status-badge status-warning" style="padding:1px 6px;font-size:10px">${t('r.excluded')}</span>` : ''}
+                    ${v.status !== 'running' ? `<span class="text-xs text-gray-500">${t('r.stopped')}</span>` : ''}
+                    <span class="text-xs text-gray-500">${esc(v.node)}</span></label>`;
+            }).join('');
+        }
+
+        function toggleRuleVm(vmid, on) {
+            if (on) ruleEdit.vms.add(vmid); else ruleEdit.vms.delete(vmid);
+            document.getElementById('rule-vms-label').textContent = t('r.f_vms', { n: ruleEdit.vms.size });
+        }
+
+        async function saveRuleEditor() {
+            const rule = { name: document.getElementById('rule-name').value.trim(), type: ruleEdit.type,
+                           vms: [...ruleEdit.vms].sort((a, b) => a - b), enabled: document.getElementById('rule-enabled').checked };
+            if (rule.type === 'pin') rule.node = document.getElementById('rule-node').value;
+            const rules = plainRules();
+            if (ruleEdit.index >= 0) rules[ruleEdit.index] = rule; else rules.push(rule);
+            const err = await saveRules(rules);
+            const el = document.getElementById('rule-error');
+            if (err) { el.textContent = err; el.classList.remove('hidden'); return; }
+            closeRuleEditor();
+        }
+
         async function refreshAll() {
             loadHealth();
             loadMaintenance();
@@ -1778,7 +2153,8 @@
             initCharts();
             refreshAll();
             setInterval(refreshAll, 30000);
-            if (window.location.hash === '#settings') showPage('settings');
+            const hashPage = window.location.hash.slice(1);
+            if (hashPage && document.getElementById('page-' + hashPage)) showPage(hashPage);
         });
     </script>
 </body>

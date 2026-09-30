@@ -193,3 +193,115 @@ def test_maintenance_drain_and_return(make_balancer, pve):
     assert pve.placement() == start
     state = json.loads(make_balancer.state_file.read_text())
     assert state["drained"] == {} and state["return_requested"] == []
+
+
+# ---------------------------------------------------------------- placement rules (config.yaml `rules`)
+
+def final_nodes(pve, migrations):
+    where = {r["vmid"]: r["node"] for r in pve.resources if r.get("type") == "qemu"}
+    for m in migrations:
+        where[m["vmid"]] = m["target"]
+    return where
+
+
+def test_normalize_rules_skips_invalid(balancer_mod):
+    rules = balancer_mod.ClusterBalance.normalize_rules([
+        {"name": "ok-anti", "type": "anti-affinity", "vms": [141, "151"]},
+        {"name": "ok-pin", "type": "pin", "vms": [121], "node": "pve3", "enabled": False},
+        {"name": "one-vm", "type": "anti-affinity", "vms": [141]},
+        {"name": "no-node", "type": "pin", "vms": [121]},
+        {"name": "bad-type", "type": "spread", "vms": [1, 2]},
+        {"name": "ok-anti", "type": "affinity", "vms": [1, 2]},   # duplicate name
+        {"name": "bad-vm", "type": "affinity", "vms": ["x", 2]},
+        "garbage",
+    ])
+    assert [(r["name"], r["vms"], r["enabled"]) for r in rules] == [("ok-anti", [141, 151], True), ("ok-pin", [121], False)]
+
+
+def test_anti_affinity_violation_is_fixed(make_balancer, pve):
+    cb = make_balancer(rules=[{"name": "renders-apart", "type": "anti-affinity", "vms": [141, 151]}])
+    cb.collect_data()
+    assert cb.rule_violations() == [{"rule": "renders-apart", "type": "anti-affinity", "vms": [151]}]
+    migs = cb.plan_migrations()
+    assert [(m["vmid"], m["reason"], m["rule"]) for m in migs] == [(151, "rule", "renders-apart")]
+    where = final_nodes(pve, migs)
+    assert where[141] != where[151]
+
+
+def test_pin_moves_vm_to_its_node(make_balancer):
+    cb = make_balancer(rules=[{"name": "files-on-pve3", "type": "pin", "vms": [121], "node": "pve3"}])
+    cb.collect_data()
+    migs = cb.plan_migrations()
+    assert [(m["vmid"], m["source"], m["target"], m["reason"]) for m in migs] == [(121, "pve1", "pve3", "rule")]
+
+
+def test_affinity_group_is_gathered(make_balancer, pve):
+    cb = make_balancer(rules=[{"name": "app-db", "type": "affinity", "vms": [141, 161]}])
+    cb.collect_data()
+    migs = cb.plan_migrations()
+    assert len(migs) == 1 and migs[0]["reason"] == "rule"
+    where = final_nodes(pve, migs)
+    assert where[141] == where[161]
+
+
+def test_rules_never_move_excluded_vms(make_balancer):
+    cb = make_balancer(rules=[{"name": "erp-pve1", "type": "pin", "vms": [300], "node": "pve1"},
+                              {"name": "dc-erp-apart", "type": "anti-affinity", "vms": [110, 301]}])
+    cb.collect_data()
+    assert cb.plan_migrations() == []
+    assert sorted(u["vmid"] for u in cb.rule_unfixable) == [300, 301]
+    assert all("haric" in u["reason"] for u in cb.rule_unfixable)
+
+
+def test_anti_affinity_moves_the_movable_member(make_balancer, pve):
+    # 110 is excluded (kritik) and stays; 121 must leave pve3 once it is there
+    pve.pile_up_on("pve3")
+    cb = make_balancer(rules=[{"name": "dc-files-apart", "type": "anti-affinity", "vms": [110, 121]}])
+    cb.collect_data()
+    migs = cb.plan_migrations()
+    assert migs[0]["vmid"] == 121 and migs[0]["reason"] == "rule" and migs[0]["target"] != "pve3"
+
+
+def test_balancing_respects_rules(make_balancer, pve):
+    pve.pile_up_on("pve3")
+    cb = make_balancer(max_migrations=10, rules=[
+        {"name": "pin-141", "type": "pin", "vms": [141], "node": "pve3"},
+        {"name": "together", "type": "affinity", "vms": [151, 161]},
+        {"name": "apart", "type": "anti-affinity", "vms": [181, 190]},
+    ])
+    cb.collect_data()
+    migs = cb.plan_migrations()
+    moved = {m["vmid"] for m in migs}
+    assert any(m["reason"] == "balance" for m in migs)
+    assert 141 not in moved
+    assert not ({151, 161} & moved)
+    where = final_nodes(pve, migs)
+    assert where[181] != where[190]
+
+
+def test_rule_fixes_come_first_and_respect_max_migrations(make_balancer, pve):
+    pve.pile_up_on("pve3")
+    cb = make_balancer(max_migrations=1, rules=[{"name": "pin-121", "type": "pin", "vms": [121], "node": "pve1"}])
+    cb.collect_data()
+    migs = cb.plan_migrations()
+    assert [(m["vmid"], m["reason"]) for m in migs] == [(121, "rule")]
+
+
+def test_disabled_rule_is_ignored(make_balancer):
+    cb = make_balancer(rules=[{"name": "off", "type": "pin", "vms": [121], "node": "pve3", "enabled": False}])
+    cb.collect_data()
+    assert cb.rules == [] and cb.plan_migrations() == []
+
+
+def test_rule_moves_wait_for_migration_window(make_balancer, pve, balancer_mod, monkeypatch):
+    real = balancer_mod.datetime
+
+    class Noon(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real(2026, 9, 30, 12, 0)
+
+    monkeypatch.setattr(balancer_mod, "datetime", Noon)
+    cb = make_balancer(migration_window="20:00-07:00", rules=[{"name": "p", "type": "pin", "vms": [121], "node": "pve3"}])
+    assert cb.run()["status"] == "deferred"
+    assert pve.migrations == []

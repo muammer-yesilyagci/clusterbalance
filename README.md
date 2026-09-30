@@ -42,6 +42,7 @@ migration history, and ready-made alerts. See the [CHANGELOG](CHANGELOG.md).
 - [Configuration](#configuration)
 - [Dashboard](#dashboard)
 - [Maintenance mode](#maintenance-mode)
+- [Placement rules](#placement-rules)
 - [Migration history](#migration-history)
 - [Health API and alerts](#health-api-and-alerts)
 - [API reference](#api-reference)
@@ -178,6 +179,8 @@ The most important ones:
 | `exclude_vmids` / `exclude_names` | `[]` | More exclusions |
 | `maintenance_nodes` | `[]` | Nodes being drained (set from the dashboard) |
 | `maintenance_include_excluded` | `true` | Also drain excluded VMs during maintenance |
+| `rules` | `[]` | [Placement rules](#placement-rules) (normally edited on the Rules page) |
+| `enforce_rules` | `true` | Fix rule violations automatically |
 | `overprovisioning_protection` / `max_memory_usage` | `true` / `95` | Never push a node above this memory % |
 | `with_local_disks` | `false` | Allow migrating VMs with local disks (not recommended) |
 
@@ -207,6 +210,7 @@ python3 -c "import getpass;from werkzeug.security import generate_password_hash 
 | **Dashboard** | Health cards (with an ⓘ legend explaining the colours), cluster totals, VM distribution and resource charts |
 | **Nodes** | Per-node CPU/RAM/disk and the **maintenance mode** buttons |
 | **Virtual machines / Containers** | Guests with status, CPU, memory |
+| **Rules** | **Placement rules**: keep VMs apart / together / on a node, with live status |
 | **Monitoring** | Cluster CPU/RAM/disk gauges |
 | **Settings** | Balancer settings, manual dry-run, **migration history**, raw log |
 
@@ -231,6 +235,38 @@ Preview from the command line (does not write to the log):
 ```bash
 python3 /opt/clusterbalance/balancer.py --maintenance-preview pve2
 ```
+
+## Placement rules
+
+**Rules** page: tell the balancer which VMs must be kept apart, kept together, or stay on one node — no Proxmox tags needed.
+
+| Rule | Meaning | Example |
+|---|---|---|
+| **Keep apart** (`anti-affinity`) | The VMs never run on the same node | two domain controllers, two cluster members |
+| **Keep together** (`affinity`) | The VMs always run on the same node | app server + its database |
+| **Pin to node** (`pin`) | The VMs only run on the chosen node | licence dongle, special hardware |
+
+How they are applied:
+
+- Every run the balancer checks the rules. It **fixes violations first**, then balances — and a balancing move never
+  breaks a rule (a pinned VM stays, a group is never split, apart-VMs never meet).
+- Fixes are ordinary migrations: they respect the migration window, `max_migrations` and dry run.
+- Excluded VMs (tags such as `kritik`, USB/PCI passthrough) are **never** moved, not even for a rule; they appear as
+  "could not be fixed" with the reason.
+- The page shows each rule's status (OK / violated) live, and the tag-based rules (`cb_pin_…`, `cb_affinity_…`,
+  `cb_anti_affinity_…`) read-only.
+
+Rules are stored in `config.yaml`, so they can also be written by hand or by automation:
+
+```yaml
+rules:
+  - {name: dcs-apart, type: anti-affinity, vms: [110, 208]}
+  - {name: app-with-db, type: affinity, vms: [131, 141]}
+  - {name: erp-on-pve2, type: pin, vms: [131], node: pve2, enabled: false}
+enforce_rules: true   # false = show violations but never move VMs for them
+```
+
+![Placement rules](docs/screenshots/rules.jpg)
 
 ## Migration history
 
@@ -290,6 +326,8 @@ All endpoints need HTTP Basic auth except `/api/widget-summary`.
 | `POST /api/maintenance/enter` `{"node":"X"}` | Put node into maintenance |
 | `POST /api/maintenance/exit` `{"node":"X"}` | Leave maintenance and move VMs back |
 | `GET/POST /api/config` | Read / change balancer settings |
+| `GET /api/rules` | Rules with live status, tag rules, VM/node lists |
+| `POST /api/rules` `{"rules":[…]}` | Replace the rule list (validated; errors as codes) |
 | `POST /api/proxmox/run-balance` | Run the balancer in dry-run now |
 | `GET /api/proxmox/balance-status` | Last 50 log lines |
 | `GET /api/summary`, `/api/nodes`, `/api/guests`, `/api/distribution`, `/api/top`, `/api/recommendations` | Data for the dashboard pages |

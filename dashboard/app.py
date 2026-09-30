@@ -274,6 +274,8 @@ _RX = {
     "maint": re.compile(r"Processing maintenance mode for (\S+)"),
     "maint_ret": re.compile(r"Processing maintenance return for (\S+)"),
     "maint_stay": re.compile(r"Bakim: VM (\d+) \((.*?)\) (\S+) uzerinde kaliyor: (.*)"),
+    "rule_planned": re.compile(r"Rule move planned: (\d+) \((.*?)\) (\S+) -> (\S+), rule '(.*)' \((\S+)\)$"),
+    "rule_unfix": re.compile(r"Kural '(.*)': VM (\d+) \((.*?)\) duzeltilemiyor: (.*)"),
 }
 
 def _log_text_since(since_str):
@@ -327,7 +329,7 @@ def parse_cb_history(hours):
                      "executed": sum(1 for m in r["migs"].values() if m["result"] not in ("ertelendi", "planlandi")),
                      "failed": sum(1 for m in r["migs"].values() if m["result"] in ("basarisiz", "zaman asimi")),
                      "dry": r["dry"], "rejections": r["rejections"], "maint": r["maint"],
-                     "maint_unmovable": r["maint_unmovable"]})
+                     "maint_unmovable": r["maint_unmovable"], "rule_unfixable": r["rule_unfixable"]})
 
     for line in text.splitlines():
         m = _LINE_RE.match(line)
@@ -339,7 +341,8 @@ def parse_cb_history(hours):
         if _RX["start"].search(msg):
             finish(run)
             run = {"ts": ts, "bal": None, "thr": None, "planned": {}, "migs": {}, "dry": False,
-                   "deferred": False, "rejections": {}, "maint": [], "maint_ret": [], "maint_unmovable": {}}
+                   "deferred": False, "rejections": {}, "maint": [], "maint_ret": [], "maint_unmovable": {},
+                   "rule_unfixable": {}}
             last_err = None
             continue
         if run is None:
@@ -351,6 +354,13 @@ def parse_cb_history(hours):
             run["planned"][vmid] = {"ts": ts, "vmid": vmid, "name": x.group(2), "source": x.group(3), "target": x.group(4),
                                     "reason": "balance", "bal_before": float(x.group(5)), "bal_after": float(x.group(6)),
                                     "threshold": run["thr"]}
+        elif (x := _RX["rule_planned"].search(msg)):
+            vmid = int(x.group(1))
+            run["planned"][vmid] = {"ts": ts, "vmid": vmid, "name": x.group(2), "source": x.group(3), "target": x.group(4),
+                                    "reason": "rule", "rule": x.group(5), "rule_type": x.group(6),
+                                    "bal_before": run["bal"], "threshold": run["thr"]}
+        elif (x := _RX["rule_unfix"].search(msg)):
+            run["rule_unfixable"][x.group(2)] = {"rule": x.group(1), "name": x.group(3), "reason": x.group(4)}
         elif (x := _RX["maint"].search(msg)):
             run["maint"].append(x.group(1))
         elif (x := _RX["maint_ret"].search(msg)):
@@ -472,7 +482,7 @@ def _write_cb_state(d):
     os.replace(tmp, CB_STATE_FILE)
 
 def _save_cb_config(c):
-    with open(CB_CONFIG_FILE, "w") as f:
+    with open(CB_CONFIG_FILE, "w", encoding="utf-8") as f:
         yaml.safe_dump(c, f, default_flow_style=False, allow_unicode=True)
 
 def _balancer_busy():
@@ -613,7 +623,7 @@ CB_MODES = {"memory", "cpu", "disk", "io", "combined"}
 
 def load_cb_config():
     try:
-        with open(CB_CONFIG_FILE) as f:
+        with open(CB_CONFIG_FILE, encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
     except Exception:
         return {}
@@ -648,11 +658,133 @@ def update_config():
             c["migration_type"] = "live" if d["migration_type"] == "online" else "offline"
         if "exclude_tags" in d:
             c["exclude_tags"] = [t.strip() for t in str(d["exclude_tags"]).split(",") if t.strip()]
-        with open(CB_CONFIG_FILE, "w") as f:
+        with open(CB_CONFIG_FILE, "w", encoding="utf-8") as f:
             yaml.safe_dump(c, f, default_flow_style=False, allow_unicode=True)
         return jsonify({"success": True, "message": "Config saved"})
     except Exception as e:
         return jsonify({"success": False, "message": str(e)})
+
+# ============ PLACEMENT RULES ============
+RULE_TYPES = ("pin", "affinity", "anti-affinity")
+RULE_NAME_RE = re.compile(r"^[\w .'-]{1,40}$")
+MAX_RULES = 100
+
+def _guest_tags(r):
+    return [t.strip() for t in re.split(r"[;,]", r.get("tags") or "") if t.strip()]
+
+def _tag_rules(res, cfg):
+    """Rules defined with Proxmox tags (read-only in the dashboard)."""
+    prefixes = (("anti-affinity", cfg.get("anti_affinity_tag_prefix", "cb_anti_affinity_")),
+                ("affinity", cfg.get("affinity_tag_prefix", "cb_affinity_")),
+                ("pin", cfg.get("pin_tag_prefix", "cb_pin_")))
+    groups = {}
+    for r in res:
+        if r.get("type") not in ("qemu", "lxc"):
+            continue
+        for tag in _guest_tags(r):
+            for rtype, prefix in prefixes:
+                if tag.startswith(prefix):
+                    rest = tag[len(prefix):]
+                    key = (rtype, rest)
+                    g = groups.setdefault(key, {"name": tag if rtype != "pin" else f"{prefix}{rest}", "type": rtype, "vms": [],
+                                                "node": rest if rtype == "pin" else "", "enabled": True, "source": "tag"})
+                    g["vms"].append(r["vmid"])
+                    break
+    return [g for g in groups.values() if g["type"] == "pin" or len(g["vms"]) > 1]
+
+def _rule_status(rule, guests):
+    members = [guests[v] for v in rule["vms"] if v in guests]
+    running = [g for g in members if g.get("status") == "running"]
+    missing = [v for v in rule["vms"] if v not in guests]
+    if rule["type"] == "pin":
+        bad = [g["vmid"] for g in running if g["node"] != rule["node"]]
+    elif rule["type"] == "anti-affinity":
+        seen, bad = set(), []
+        for g in running:
+            if g["node"] in seen:
+                bad.append(g["vmid"])
+            seen.add(g["node"])
+    else:
+        bad = [g["vmid"] for g in running] if len({g["node"] for g in running}) > 1 else []
+    return {"ok": not bad, "bad": bad, "missing": missing}
+
+def _validate_rules(raw, vmids, nodes):
+    """Strict validation for the editor. Returns (rules, error_code, rule_name)."""
+    if not isinstance(raw, list):
+        return None, "format", ""
+    if len(raw) > MAX_RULES:
+        return None, "too_many", ""
+    out, names = [], set()
+    for r in raw:
+        if not isinstance(r, dict):
+            return None, "format", ""
+        name = str(r.get("name", "")).strip()
+        if not RULE_NAME_RE.match(name):
+            return None, "name", name
+        if name in names:
+            return None, "dup_name", name
+        rtype = r.get("type")
+        if rtype not in RULE_TYPES:
+            return None, "type", name
+        try:
+            vms = sorted({int(v) for v in r.get("vms") or []})
+        except (TypeError, ValueError):
+            return None, "vm", name
+        if any(v not in vmids for v in vms):
+            return None, "vm", name
+        if not vms or (rtype != "pin" and len(vms) < 2):
+            return None, "min_vms", name
+        node = str(r.get("node") or "")
+        if rtype == "pin" and node not in nodes:
+            return None, "node", name
+        names.add(name)
+        rule = {"name": name, "type": rtype, "vms": vms, "enabled": r.get("enabled", True) is not False}
+        if rtype == "pin":
+            rule["node"] = node
+        out.append(rule)
+    return out, None, ""
+
+@app.route("/api/rules", methods=["GET"])
+def api_rules():
+    cfg = load_cb_config()
+    res = get_res()
+    guests = {r["vmid"]: r for r in res if r.get("type") in ("qemu", "lxc")}
+    rules = []
+    for r in cfg.get("rules") or []:
+        if isinstance(r, dict) and r.get("type") in RULE_TYPES:
+            r = {"name": str(r.get("name", "")), "type": r["type"], "vms": [int(v) for v in r.get("vms") or [] if str(v).isdigit()],
+                 "node": r.get("node", ""), "enabled": r.get("enabled", True) is not False, "source": "config"}
+            rules.append(r)
+    tag_rules = _tag_rules(res, cfg)
+    for r in rules + tag_rules:
+        r["status"] = _rule_status(r, guests)
+    last = (parse_cb_history(6) or {}).get("last_run") or {}
+    return jsonify({
+        "rules": rules, "tag_rules": tag_rules,
+        "vms": sorted(({"vmid": g["vmid"], "name": g.get("name", ""), "node": g.get("node"), "status": g.get("status"),
+                        "type": "VM" if g.get("type") == "qemu" else "CT", "tags": _guest_tags(g)} for g in guests.values()),
+                      key=lambda g: g["vmid"]),
+        "nodes": sorted(r["node"] for r in res if r.get("type") == "node"),
+        "enforce": cfg.get("enforce_rules", True) is not False, "window": cfg.get("migration_window", ""),
+        "dry_run": bool(cfg.get("dry_run")), "exclude_tags": cfg.get("exclude_tags") or [],
+        "unfixable": last.get("rule_unfixable", {}), "last_run": last.get("ts"),
+    })
+
+@app.route("/api/rules", methods=["POST"])
+def api_rules_save():
+    cfg = load_cb_config()
+    if not cfg:
+        return jsonify({"success": False, "error": "config"}), 500
+    res = get_res()
+    vmids = {r["vmid"] for r in res if r.get("type") in ("qemu", "lxc")}
+    nodes = {r["node"] for r in res if r.get("type") == "node"}
+    rules, err, name = _validate_rules((request.json or {}).get("rules"), vmids, nodes)
+    if err:
+        return jsonify({"success": False, "error": err, "rule": name}), 400
+    cfg["rules"] = rules
+    _save_cb_config(cfg)
+    _audit(f"kurallar guncellendi: {len(rules)} kural ({', '.join(r['name'] for r in rules)})")
+    return jsonify({"success": True, "count": len(rules)})
 
 # ============ PROXMOX SETTINGS API ============
 

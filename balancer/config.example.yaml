@@ -10,6 +10,11 @@
 #   exclude_tags           Proxmox tags that exclude a VM from balancing (maintenance may still move it)
 #   maintenance_nodes      nodes being drained (normally set from the dashboard)
 #   maintenance_include_excluded   also drain excluded (e.g. "critical") VMs during maintenance
+#   rules                  placement rules (keep apart / together / pin), normally edited on the dashboard Rules page:
+#                            - {name: dcs-apart, type: anti-affinity, vms: [110, 208]}
+#                            - {name: app-with-db, type: affinity, vms: [131, 141]}
+#                            - {name: erp-on-pve2, type: pin, vms: [131], node: pve2}
+#   enforce_rules          fix rule violations automatically (inside the migration window)
 affinity_tag_prefix: cb_affinity_
 anti_affinity_tag_prefix: cb_anti_affinity_
 balance_cts: true
@@ -27,6 +32,7 @@ disk_threshold: 85
 disk_weight: 1.0
 dry_run: true
 enabled: true
+enforce_rules: true
 exclude_names: []
 exclude_nodes: []
 exclude_tags:
@@ -104,6 +110,7 @@ pools: {}
 psi_cpu_threshold: 25.0
 psi_io_threshold: 10.0
 psi_memory_threshold: 10.0
+rules: []
 schedule_interval: 21600
 storage_balancing:
   consider_latency: true

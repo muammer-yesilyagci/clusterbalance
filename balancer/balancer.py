@@ -119,6 +119,16 @@ DEFAULT_CONFIG = {
     # Ignore tag
     "ignore_tag_prefix": "cb_ignore",
 
+    # Placement rules edited from the dashboard (in addition to the cb_* tags above).
+    # Violations are fixed inside the migration window, before balancing moves.
+    "rules": [],
+    # Example:
+    # rules:
+    #   - {name: dcs-apart, type: anti-affinity, vms: [110, 208]}   # never on the same node
+    #   - {name: app-with-db, type: affinity, vms: [131, 141]}      # always on the same node
+    #   - {name: erp-on-pve2, type: pin, vms: [131], node: pve2}    # stays on this node
+    "enforce_rules": True,
+
     # Pool-based rules
     "pools": {},
     # Example:
@@ -306,9 +316,11 @@ class ClusterBalance:
         self.affinity_groups: Dict[str, List[int]] = {}
         self.anti_affinity_groups: Dict[str, List[int]] = {}
         self.pinned_guests: Dict[int, str] = {}
+        self.rules: List[Dict] = []
         self.ignored_guests: List[int] = []
         self.io_sensitive_guests: List[int] = []  # I/O sensitive VMs
         self.rejections: Dict[int, Dict[str, str]] = {}
+        self.rule_unfixable: List[Dict] = []
 
         # Initialize notification manager
         self.notifier = NotificationManager(self.config)
@@ -323,7 +335,7 @@ class ClusterBalance:
 
         if os.path.exists(config_file):
             try:
-                with open(config_file, 'r') as f:
+                with open(config_file, 'r', encoding='utf-8') as f:
                     file_config = yaml.safe_load(f) or {}
                     config.update(file_config)
             except Exception as e:
@@ -626,6 +638,9 @@ class ClusterBalance:
         # Process pool-based rules
         self._process_pool_rules()
 
+        # Rules from config.yaml (dashboard rule editor)
+        self._process_config_rules()
+
         # Storage / HA placement rules
         self._load_placement_rules()
 
@@ -667,6 +682,139 @@ class ClusterBalance:
                 for vmid in pool_vms:
                     if vmid not in self.pinned_guests:
                         self.pinned_guests[vmid] = pin_nodes[0]  # Pin to first node
+
+    RULE_TYPES = ("pin", "affinity", "anti-affinity")
+
+    @classmethod
+    def normalize_rules(cls, raw) -> List[Dict]:
+        """Validate the `rules` list from config.yaml; invalid entries are skipped with a warning."""
+        out, seen = [], set()
+        for i, r in enumerate(raw or []):
+            try:
+                name = str(r.get("name") or f"rule-{i + 1}").strip()
+                rtype = str(r.get("type", "")).strip().lower().replace("_", "-")
+                vms = sorted({int(v) for v in (r.get("vms") or [])})
+                node = str(r.get("node") or "").strip()
+            except (AttributeError, TypeError, ValueError):
+                logger.warning(f"Kural #{i + 1} gecersiz, atlandi: {r!r}")
+                continue
+            if rtype not in cls.RULE_TYPES or not vms or name in seen \
+                    or (rtype == "pin" and not node) or (rtype != "pin" and len(vms) < 2):
+                logger.warning(f"Kural '{name}' gecersiz, atlandi")
+                continue
+            seen.add(name)
+            out.append({"name": name, "type": rtype, "vms": vms, "node": node if rtype == "pin" else "",
+                        "enabled": r.get("enabled", True) is not False})
+        return out
+
+    def _process_config_rules(self):
+        self.rules = [r for r in self.normalize_rules(self.config.get("rules")) if r["enabled"]]
+        for r in self.rules:
+            key = f"rule:{r['name']}"
+            if r["type"] == "affinity":
+                self.affinity_groups[key] = list(r["vms"])
+            elif r["type"] == "anti-affinity":
+                self.anti_affinity_groups[key] = list(r["vms"])
+            elif r["node"] in self.nodes:
+                for vmid in r["vms"]:
+                    self.pinned_guests[vmid] = r["node"]
+        if self.rules:
+            logger.info(f"Config rules: {len(self.rules)} ({', '.join(r['name'] for r in self.rules)})")
+
+    def _running_members(self, vmids) -> List[Dict]:
+        return [g for g in self.guests if g["vmid"] in vmids and g["status"] == "running"]
+
+    def rule_violations(self) -> List[Dict]:
+        """Rules that the current (or simulated) placement breaks."""
+        out = []
+        for r in self.rules:
+            members = self._running_members(r["vms"])
+            if r["type"] == "pin":
+                bad = [g for g in members if g["node"] != r["node"]]
+            elif r["type"] == "anti-affinity":
+                per_node: Dict[str, List[Dict]] = {}
+                for g in members:
+                    per_node.setdefault(g["node"], []).append(g)
+                bad = [g for gs in per_node.values() if len(gs) > 1 for g in gs[1:]]
+            else:
+                bad = members if len({g["node"] for g in members}) > 1 else []
+            if bad:
+                out.append({"rule": r["name"], "type": r["type"], "vms": [g["vmid"] for g in bad]})
+        return out
+
+    def _fits(self, guest: Dict, node_name: str) -> bool:
+        node = self.nodes.get(node_name)
+        if not node or node["maintenance"]:
+            return False
+        if self.config.get("overprovisioning_protection"):
+            return (node["mem"] + guest["maxmem"]) / node["maxmem"] * 100 <= self.config.get("max_memory_usage", 95)
+        return True
+
+    def _placement_ok(self, guest: Dict, node_name: str) -> Tuple[bool, str]:
+        if node_name not in self.nodes:
+            return False, f"{node_name} cevrimici node degil"
+        ok, why = self.ha_target_ok(guest["vmid"], node_name)
+        if ok:
+            ok, why = self.guest_storage_ok(guest, node_name)
+        if ok and not self._fits(guest, node_name):
+            ok, why = False, f"{node_name} kapasitesi yetersiz veya bakimda"
+        return ok, why
+
+    def _plan_rule_fixes(self, max_migrations: int):
+        """Plan moves that repair broken rules (reason 'rule'). Excluded VMs are never moved."""
+        def move(guest, target, rule):
+            source = guest["node"]
+            self._apply_move(guest, target)
+            guest["node"] = target
+            self.migrations.append({"vmid": guest["vmid"], "name": guest["name"], "type": guest["type"],
+                                    "source": source, "target": target, "reason": "rule",
+                                    "rule": rule["name"], "rule_type": rule["type"]})
+            logger.info(f"Rule move planned: {guest['vmid']} ({guest['name']}) {source} -> {target}, "
+                        f"rule '{rule['name']}' ({rule['type']})")
+
+        def unfixable(guest, rule, why):
+            self.rule_unfixable.append({"vmid": guest["vmid"], "name": guest["name"], "rule": rule["name"], "reason": why})
+            logger.warning(f"Kural '{rule['name']}': VM {guest['vmid']} ({guest['name']}) duzeltilemiyor: {why}")
+
+        for rule in self.rules:
+            members = self._running_members(rule["vms"])
+            if rule["type"] == "pin":
+                todo = [(g, rule["node"]) for g in members if g["node"] != rule["node"]]
+            elif rule["type"] == "anti-affinity":
+                # VMs that cannot move keep their node; the others move away
+                todo, taken = [], set()
+                for g in sorted(members, key=lambda g: g["vmid"] not in self.ignored_guests):
+                    if g["node"] in taken:
+                        todo.append((g, None))
+                    taken.add(g["node"])
+            else:
+                # affinity: gather on the node that already has most members (or an unmovable one)
+                weight: Dict[str, int] = {}
+                for g in members:
+                    weight[g["node"]] = weight.get(g["node"], 0) + (100 if g["vmid"] in self.ignored_guests else 1)
+                anchor = max(weight, key=weight.get) if weight else None
+                todo = [(g, anchor) for g in members if g["node"] != anchor]
+            for guest, target in todo:
+                if len(self.migrations) >= max_migrations:
+                    return
+                if any(m["vmid"] == guest["vmid"] for m in self.migrations):
+                    continue
+                if guest["vmid"] in self.ignored_guests:
+                    unfixable(guest, rule, f"haric tutuluyor ({guest.get('excluded_by') or 'USB/PCI'})")
+                    continue
+                if target is None:
+                    target = self.find_best_target_node(guest)
+                    if not target:
+                        why = self.rejections.get(guest["vmid"], {})
+                        unfixable(guest, rule, "; ".join(f"{n}: {r}" for n, r in why.items())
+                                  or "uygun hedef node yok (kapasite/kural)")
+                        continue
+                else:
+                    ok, why = self._placement_ok(guest, target)
+                    if not ok:
+                        unfixable(guest, rule, why)
+                        continue
+                move(guest, target, rule)
 
     def is_io_sensitive(self, guest: Dict) -> bool:
         """Check if guest is I/O sensitive (database, etc.)"""
@@ -925,16 +1073,13 @@ class ClusterBalance:
                     if other_guest and other_guest["node"] in available_nodes:
                         available_nodes.remove(other_guest["node"])
 
-        # Check affinity rules
+        # Check affinity rules: never split a group; join the group if it lives elsewhere
         for group, vmids in self.affinity_groups.items():
             if vmid in vmids:
-                affinity_nodes = []
-                for other_vmid in vmids:
-                    if other_vmid == vmid:
-                        continue
-                    other_guest = next((g for g in self.guests if g["vmid"] == other_vmid), None)
-                    if other_guest and other_guest["node"] in available_nodes:
-                        affinity_nodes.append(other_guest["node"])
+                others = [g for g in self._running_members(vmids) if g["vmid"] != vmid]
+                if any(g["node"] == current_node for g in others):
+                    return None
+                affinity_nodes = [g["node"] for g in others if g["node"] in available_nodes]
                 if affinity_nodes:
                     available_nodes = affinity_nodes
 
@@ -1038,6 +1183,11 @@ class ClusterBalance:
 
             max_migrations = self.config.get("max_migrations", 3)
             min_improvement = float(self.config.get("min_improvement", 5.0))
+
+            # Kural ihlallerini duzelt (dengeleme tasimalarindan once)
+            self.rule_unfixable = []
+            if self.rules and self.config.get("enforce_rules", True):
+                self._plan_rule_fixes(max_migrations)
 
             candidates = [g for g in self.guests if g["status"] == "running" and g["vmid"] not in self.ignored_guests]
             if not self.config.get("balance_vms", True):
@@ -1298,13 +1448,13 @@ class ClusterBalance:
                 "migrations": 0
             }
 
-        # Balance migrations only inside the migration window (maintenance moves always allowed)
+        # Balance and rule migrations only inside the migration window (maintenance moves always allowed)
         if not self.config.get("dry_run") and not self.in_migration_window():
-            deferred = [m for m in self.migrations if m.get("reason") == "balance"]
+            deferred = [m for m in self.migrations if m.get("reason") in ("balance", "rule")]
             if deferred:
                 logger.info(f"Tasima penceresi disinda ({self.config.get('migration_window')}): "
-                            f"{len(deferred)} dengeleme tasimasi ertelendi")
-            self.migrations = [m for m in self.migrations if m.get("reason") != "balance"]
+                            f"{len(deferred)} dengeleme/kural tasimasi ertelendi")
+            self.migrations = [m for m in self.migrations if m.get("reason") not in ("balance", "rule")]
             if not self.migrations:
                 return {"status": "deferred", "migrations": 0}
 
@@ -1379,7 +1529,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print("ClusterBalance v2.0.0")
+        print("ClusterBalance v2.1.0")
         return
 
     if args.maintenance_preview:

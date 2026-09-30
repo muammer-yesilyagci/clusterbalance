@@ -41,6 +41,7 @@ ve hazır uyarılar. Ayrıntılar: [CHANGELOG](CHANGELOG.md).
 - [Ayarlar](#ayarlar)
 - [Panel](#panel)
 - [Bakım modu](#bakım-modu)
+- [Yerleşim kuralları](#yerleşim-kuralları)
 - [Taşıma geçmişi](#taşıma-geçmişi)
 - [Sağlık API'si ve uyarılar](#sağlık-apisi-ve-uyarılar)
 - [API listesi](#api-listesi)
@@ -177,6 +178,8 @@ En önemlileri:
 | `exclude_vmids` / `exclude_names` | `[]` | Ek hariç tutmalar |
 | `maintenance_nodes` | `[]` | Boşaltılan node'lar (panelden ayarlanır) |
 | `maintenance_include_excluded` | `true` | Bakımda hariç tutulan VM'leri de taşı |
+| `rules` | `[]` | [Yerleşim kuralları](#yerleşim-kuralları) (normalde Kurallar sayfasından düzenlenir) |
+| `enforce_rules` | `true` | Kural ihlallerini otomatik düzelt |
 | `overprovisioning_protection` / `max_memory_usage` | `true` / `95` | Hiçbir node'u bu RAM %'sinin üstüne çıkarma |
 | `with_local_disks` | `false` | Yerel diskli VM'leri taşımaya izin ver (önerilmez) |
 
@@ -206,7 +209,8 @@ python3 -c "import getpass;from werkzeug.security import generate_password_hash 
 | **Dashboard** | Sağlık kartları (renklerin anlamını anlatan ⓘ Bilgi kutusuyla), cluster toplamları, VM dağılımı ve kaynak grafikleri |
 | **Node'lar** | Node başına CPU/RAM/disk ve **bakım modu** butonları |
 | **Sanal Makineler / Container'lar** | Durum, CPU, bellek |
-| **Monitoring** | Cluster CPU/RAM/disk göstergeleri |
+| **Kurallar** | **Yerleşim kuralları**: VM'leri ayrı / birlikte / bir node'da tut, canlı durumla |
+| **İzleme** | Cluster CPU/RAM/disk göstergeleri |
 | **Ayarlar** | Dengeleyici ayarları, elle test, **taşıma geçmişi**, ham log |
 
 Renk sadece anlam taşıyorsa kullanılır: yeşil/sarı/kırmızı = durum, mavi = işlem, her veri serisine tek renk.
@@ -230,6 +234,39 @@ Komut satırından önizleme (log'a yazmaz):
 ```bash
 python3 /opt/clusterbalance/balancer.py --maintenance-preview pve2
 ```
+
+## Yerleşim kuralları
+
+**Kurallar** sayfası: hangi VM'lerin ayrı tutulacağını, hangilerinin birlikte kalacağını, hangisinin tek bir node'da
+duracağını panelden tanımlarsınız — Proxmox etiketi gerekmez.
+
+| Kural | Anlamı | Örnek |
+|---|---|---|
+| **Ayrı tut** (`anti-affinity`) | VM'ler asla aynı node'da çalışmaz | iki domain controller, iki cluster üyesi |
+| **Birlikte tut** (`affinity`) | VM'ler hep aynı node'da çalışır | uygulama sunucusu + veritabanı |
+| **Node'a sabitle** (`pin`) | VM'ler yalnızca seçilen node'da çalışır | lisans dongle'ı, özel donanım |
+
+Nasıl uygulanır:
+
+- Dengeleyici her çalışmada kuralları kontrol eder; **önce ihlalleri düzeltir**, sonra dengeler. Dengeleme taşıması
+  hiçbir kuralı bozmaz (sabitlenen VM yerinde kalır, grup bölünmez, ayrı tutulanlar aynı node'a düşmez).
+- Düzeltmeler normal taşımadır: taşıma penceresine, `max_migrations` sınırına ve dry run'a uyar.
+- Hariç tutulan VM'ler (`kritik` gibi etiketler, USB/PCI) kural için bile **asla** taşınmaz; nedeniyle birlikte
+  "düzeltilemeyen" olarak listelenir.
+- Sayfa her kuralın durumunu (uygun / ihlal) canlı gösterir; etiketle tanımlı kuralları (`cb_pin_…`, `cb_affinity_…`,
+  `cb_anti_affinity_…`) salt okunur listeler.
+
+Kurallar `config.yaml` içinde saklanır, elle ya da otomasyonla da yazılabilir:
+
+```yaml
+rules:
+  - {name: dc-ayri, type: anti-affinity, vms: [110, 208]}
+  - {name: uygulama-db, type: affinity, vms: [131, 141]}
+  - {name: erp-pve2, type: pin, vms: [131], node: pve2, enabled: false}
+enforce_rules: true   # false = ihlalleri göster ama bunun için VM taşıma
+```
+
+![Yerleşim kuralları](docs/screenshots/rules.jpg)
 
 ## Taşıma geçmişi
 

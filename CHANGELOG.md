@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.0 — 2026-09-30
+
+### Placement rules
+- New **Rules** page: keep VMs apart (anti-affinity), keep them together (affinity) or pin them to a node, without Proxmox tags. Live status per rule; tag-based rules are shown read-only.
+- The balancer now **fixes rule violations** (reason `rule`, shown in the migration history) before balancing, inside the migration window and within `max_migrations`. Excluded VMs are never moved for a rule and are reported as "could not be fixed".
+- Balancing no longer splits an affinity group.
+- `rules` / `enforce_rules` in `config.yaml`; `GET/POST /api/rules`.
+
+### Dashboard
+- **English and Turkish UI** with a TR/EN switch (defaults to the browser language); Turkish texts with proper characters.
+- Config file is read/written as UTF-8.
+
+### Quality
+- Test suite (pytest + node:test) on an anonymized 3-node cluster snapshot with a fake `pvesh`; GitHub Actions CI (Python 3.11/3.13, JS checks, shellcheck).
+- Balancer paths configurable with `CB_DIR`, `CB_CONFIG`, `CB_STATE_FILE`, `CB_LOG`.
+
 ## 2.0.0 — 2026-09-29
 
 Hardened, production-tested release. Highlights:

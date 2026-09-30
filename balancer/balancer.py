@@ -1529,7 +1529,7 @@ def main():
     args = parser.parse_args()
 
     if args.version:
-        print("ClusterBalance v2.1.0")
+        print("ClusterBalance v2.0.0")
         return
 
     if args.maintenance_preview:

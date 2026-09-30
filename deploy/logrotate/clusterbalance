@@ -1,0 +1,9 @@
+/var/log/clusterbalance.log {
+    weekly
+    rotate 26
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}

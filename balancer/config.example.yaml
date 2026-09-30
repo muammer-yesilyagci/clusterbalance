@@ -1,0 +1,119 @@
+# ClusterBalance configuration  (/opt/clusterbalance/config.yaml)
+# Safe defaults: dry_run is TRUE - the balancer only logs what it WOULD do.
+# Turn dry_run off (here or from the dashboard) once the decisions in the log look right.
+#
+# Key options:
+#   balanciness_threshold  max allowed score difference between nodes before balancing starts
+#   min_improvement        a migration must lower that difference by at least this much
+#   max_migrations         max balancing migrations per run (runs every 15 min)
+#   migration_window       "HH:MM-HH:MM" - real balancing migrations only in this window ("" = always)
+#   exclude_tags           Proxmox tags that exclude a VM from balancing (maintenance may still move it)
+#   maintenance_nodes      nodes being drained (normally set from the dashboard)
+#   maintenance_include_excluded   also drain excluded (e.g. "critical") VMs during maintenance
+affinity_tag_prefix: cb_affinity_
+anti_affinity_tag_prefix: cb_anti_affinity_
+balance_cts: true
+balance_larger_first: true
+balance_vms: true
+balanciness_threshold: 15
+cpu_enabled: true
+cpu_threshold: 80
+cpu_weight: 1.0
+daemon: false
+dashboard_enabled: true
+dashboard_port: 5000
+disk_enabled: true
+disk_threshold: 85
+disk_weight: 1.0
+dry_run: true
+enabled: true
+exclude_names: []
+exclude_nodes: []
+exclude_tags:
+- kritik
+- critical
+- pinned
+- no-migrate
+exclude_vmids: []
+ignore_tag_prefix: cb_ignore
+io_enabled: true
+io_sensitive_workloads:
+  auto_detect_patterns:
+  - sql
+  - mssql
+  - mysql
+  - postgres
+  - mariadb
+  - oracle
+  - mongodb
+  - redis
+  - elasticsearch
+  - kafka
+  - database
+  - db
+  enabled: true
+  io_migration_threshold: 20
+  io_sensitive_tag: cb_io_sensitive
+  io_weight_multiplier: 2.0
+  prefer_low_io_nodes: true
+io_threshold: 70
+io_weight: 1.5
+log_level: INFO
+maintenance_include_excluded: true
+maintenance_nodes: []
+max_cpu_usage: 95
+max_memory_usage: 95
+max_migrations: 3
+memory_enabled: true
+memory_threshold: 85
+memory_weight: 2.0
+method: combined
+migration_bandwidth: 0
+migration_timeout: 900
+migration_type: live
+migration_window: 20:00-07:00
+min_improvement: 5.0
+mode: used
+notifications:
+  discord:
+    enabled: false
+    webhook_url: ''
+  enabled: false
+  notify_on_error: true
+  notify_on_imbalance: true
+  notify_on_maintenance: true
+  notify_on_migration: true
+  slack:
+    enabled: false
+    webhook_url: ''
+  smtp:
+    enabled: false
+    host: smtp.example.com
+    password: ''
+    port: 587
+    to_addresses:
+    - admin@example.com
+    username: ''
+  teams:
+    enabled: false
+    webhook_url: ''
+overprovisioning_protection: true
+parallel_migrations: 1
+pin_tag_prefix: cb_pin_
+pools: {}
+psi_cpu_threshold: 25.0
+psi_io_threshold: 10.0
+psi_memory_threshold: 10.0
+schedule_interval: 21600
+storage_balancing:
+  consider_latency: true
+  enabled: true
+  min_free_space_percent: 20
+  prefer_low_io_storage: true
+  storage_preference:
+  - nvme
+  - ssd
+  - hdd
+webhook_enabled: false
+webhook_url: ''
+with_local_disks: false

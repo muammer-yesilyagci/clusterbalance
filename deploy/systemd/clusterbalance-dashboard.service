@@ -1,0 +1,17 @@
+[Unit]
+Description=ClusterBalance dashboard (HTTPS web UI)
+After=network-online.target pve-cluster.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/clusterbalance/dashboard
+ExecStart=/usr/bin/python3 /opt/clusterbalance/dashboard/app.py
+# Environment=CB_DASHBOARD_PORT=5000
+# Environment=CB_BACKUP_STORAGE=my-pbs
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,120 @@
+{
+  "name": "ClusterBalance – Proxmox health alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Her 5 dakikada",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://YOUR-PVE-NODE:5000/api/health",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "options": {
+          "timeout": 60000,
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Panel /api/health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Proxmox sağlık kontrolü — yalnızca DURUM DEĞİŞİNCE e-posta üretir (HTML + düz metin).\nconst d = $input.first().json || {};\nconst st = $getWorkflowStaticData('global');\nconst prev = st.states || null;\nconst PANEL = 'https://YOUR-PVE-NODE:5000';  // panel adresi\nconst now = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul', dateStyle: 'long', timeStyle: 'short' });\n\nconst ORDER = ['panel', 'cluster', 'storage', 'ha', 'backups', 'tasks'];\nconst NAMES = { panel: 'Panel erişimi', cluster: 'Cluster / Quorum', storage: 'Depolama bağlantıları', ha: 'HA servisleri', backups: 'Yedekler (PBS)', tasks: 'Başarısız görevler' };\nconst HINTS = {\n  panel: \"Panelin calistigi node'da servisi kontrol edin: systemctl status clusterbalance-dashboard\",\n  cluster: \"Erişilemeyen node'un açık olduğunu ve ağ kablosunu kontrol edin. Quorum yoksa HA çalışmaz.\",\n  storage: \"İlgili node'da paylaşımlı diski bağlayın (ör. mount <yol>) ve depolama sunucusunun (NFS) açık olduğunu kontrol edin. Disk bağlı değilken o node'a VM taşınamaz.\",\n  ha: \"Proxmox → Datacenter → HA ekranına bakın. Error durumundaki servis için: ha-manager set vm:ID --state disabled, ardından --state started.\",\n  backups: \"PBS yedek görevinin çalıştığını ve yedek deposunda yer olduğunu kontrol edin.\",\n  tasks: \"Proxmox arayüzünde Görevler (Tasks) listesinde ilgili görevi açıp hatayı inceleyin.\",\n};\n\nconst states = {}, summary = {}, headline = {}, details = {};\nif (!d.cluster && !d.storage) {\n  states.panel = 'SORUN';\n  headline.panel = 'Panele ulaşılamıyor';\n  summary.panel = 'Cevap yok';\n  details.panel = [String((d.error && (d.error.message || d.error)) || 'Bağlantı kurulamadı').slice(0, 200)];\n} else {\n  states.panel = 'OK'; summary.panel = 'Erişilebilir';\n\n  const c = d.cluster || {};\n  const down = (c.nodes || []).filter(n => !n.online).map(n => n.name);\n  states.cluster = c.ok ? 'OK' : 'SORUN';\n  summary.cluster = `${(c.nodes || []).length - down.length}/${(c.nodes || []).length} node çevrimiçi, quorum ${c.quorate ? 'var' : 'YOK'}`;\n  headline.cluster = !c.quorate ? 'Quorum kaybedildi' : `${down.join(', ')} erişilemiyor`;\n  details.cluster = c.error ? [c.error] : down.map(n => `${n}: erişilemiyor`);\n\n  const s = d.storage || {};\n  const um = (s.items || []).filter(i => !i.mounted);\n  states.storage = s.ok ? 'OK' : 'SORUN';\n  summary.storage = `${(s.items || []).length - um.length}/${(s.items || []).length} bağlantı bağlı`;\n  headline.storage = um.length ? `${um[0].storage} ${um.map(i => i.node).join(', ')} üzerinde bağlı değil` : 'Depolama okunamadı';\n  details.storage = s.error ? [s.error] : um.map(i => `${i.storage} @ ${i.node}: bağlı değil (${i.path})`);\n\n  const h = d.ha || {};\n  const bad = h.bad || [];\n  states.ha = h.ok ? 'OK' : 'SORUN';\n  summary.ha = bad.length ? `${bad.length}/${h.total} serviste sorun` : `${h.total} servis normal`;\n  headline.ha = bad.length ? `${bad[0].sid} ${bad[0].state} durumunda${bad.length > 1 ? ` (+${bad.length - 1})` : ''}` : 'HA okunamadı';\n  details.ha = h.error ? [h.error] : bad.map(b => `${b.sid} @ ${b.node}: ${b.state} (olması gereken: ${b.request_state})`);\n\n  const b = d.backups || {};\n  const probs = b.problems || [];\n  states.backups = b.ok ? 'OK' : (probs.length && probs.every(p => p.level === 'warn') ? 'UYARI' : 'SORUN');\n  summary.backups = `${b.newest_ok ?? 0}/${b.total ?? 0} VM son 26 saatte yedeklendi`;\n  headline.backups = `${probs.length} VM'in yedeği eski`;\n  details.backups = b.error ? [b.error] : probs.map(p => `${p.vmid} ${p.name}: ${p.last ? `son yedek ${p.last} (${p.age_h} saat önce)` : 'hiç yedek yok'}`);\n\n  const t = d.tasks || {};\n  const failed = t.failed || [];\n  // Her yeni başarısız görev yeni bir durum sayılır (aynı görev için tekrar mail atılmaz)\n  states.tasks = failed.length ? 'SORUN#' + failed.map(x => `${x.time}|${x.node}|${x.type}|${x.id}`).sort().join(',') : 'OK';\n  summary.tasks = failed.length ? `Son 24 saatte ${failed.length} başarısız görev` : 'Son 24 saatte yok';\n  headline.tasks = failed.length ? `${failed.length} başarısız görev (son: ${failed[0].type} ${failed[0].id || ''} @ ${failed[0].node})` : '';\n  details.tasks = failed.map(x => `${x.time} ${x.node} — ${x.type} ${x.id || ''}: ${x.status}`);\n}\nst.states = states;\n\nconst lab = v => (v || 'BILINMIYOR').split('#')[0];\nconst changed = ORDER.filter(k => k in states).filter(k => !prev ? lab(states[k]) !== 'OK'\n  : lab(prev[k]) !== lab(states[k]) || (k === 'tasks' && prev[k] !== states[k] && states[k] !== 'OK'));\nif (!changed.length) return [];\n\nconst active = ORDER.filter(k => k in states && lab(states[k]) !== 'OK');\nconst hasBad = active.some(k => lab(states[k]) === 'SORUN');\nconst level = hasBad ? 'SORUN' : active.length ? 'UYARI' : 'DUZELDI';\nconst TAG = { SORUN: 'SORUN', UYARI: 'UYARI', DUZELDI: 'DÜZELDİ' };\nconst COLOR = { SORUN: '#dc2626', UYARI: '#ca8a04', DUZELDI: '#16a34a' };\nconst PILL = { OK: ['#dcfce7', '#166534', 'Normal'], UYARI: ['#fef9c3', '#854d0e', 'Uyarı'], SORUN: ['#fee2e2', '#991b1b', 'Sorun'], BILINMIYOR: ['#f3f4f6', '#374151', '—'] };\n\nconst first = active[0];\nconst subject = level === 'DUZELDI'\n  ? '[DÜZELDİ] Proxmox – tüm kontroller normale döndü'\n  : `[${TAG[level]}] Proxmox – ${headline[first]}${active.length > 1 ? ` (+${active.length - 1} sorun daha)` : ''}`;\nconst lead = level === 'DUZELDI' ? 'Tüm kontroller normale döndü.'\n  : `${active.length} kontrolde ${hasBad ? 'sorun' : 'uyarı'} var: ${active.map(k => NAMES[k]).join(', ')}.`;\n\nconst esc = s => String(s ?? '').replace(/[&<>\"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[ch]));\nconst pill = v => { const [bg, fg, tx] = PILL[lab(v)] || PILL.BILINMIYOR; return `<span style=\"display:inline-block;padding:2px 10px;border-radius:10px;background:${bg};color:${fg};font-size:12px;font-weight:600\">${tx}</span>`; };\nconst wasIs = k => `${prev ? (PILL[lab(prev[k])] || PILL.BILINMIYOR)[2] : 'ilk kontrol'} → ${lab(states[k]) === 'OK' ? 'Normal (düzeldi)' : PILL[lab(states[k])][2]}`;\n\nlet html = `<div style=\"background:#f4f5f7;padding:24px 0;font-family:Segoe UI,Arial,sans-serif;color:#1f2937\">\n<table role=\"presentation\" width=\"100%\" align=\"center\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb\">\n<tr><td style=\"background:${COLOR[level]};padding:18px 24px;color:#ffffff\">\n  <div style=\"font-size:12px;opacity:.9;letter-spacing:.5px\">PROXMOX CLUSTER • ${TAG[level]}</div>\n  <div style=\"font-size:20px;font-weight:600;margin-top:4px\">${esc(level === 'DUZELDI' ? 'Tüm kontroller normal' : headline[first])}</div>\n  <div style=\"font-size:13px;margin-top:6px;opacity:.95\">${esc(lead)}</div>\n</td></tr>\n<tr><td style=\"padding:20px 24px\">\n  <div style=\"font-size:12px;color:#6b7280;margin-bottom:14px\">${esc(now)}</div>\n  <div style=\"font-size:14px;font-weight:600;margin-bottom:8px\">Ne değişti?</div>\n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-size:13px;margin-bottom:18px\">\n  ${changed.map(k => `<tr><td style=\"padding:6px 0;border-bottom:1px solid #f0f1f3\">${esc(NAMES[k])}</td><td style=\"padding:6px 0;border-bottom:1px solid #f0f1f3;text-align:right;color:${lab(states[k]) === 'OK' ? '#166534' : COLOR[lab(states[k]) === 'UYARI' ? 'UYARI' : 'SORUN']};font-weight:600\">${esc(wasIs(k))}</td></tr>`).join('')}\n  </table>`;\nif (active.length) {\n  html += `<div style=\"font-size:14px;font-weight:600;margin-bottom:8px\">Ne yapmalı?</div>`;\n  for (const k of active) {\n    html += `<div style=\"border-left:3px solid ${lab(states[k]) === 'UYARI' ? COLOR.UYARI : COLOR.SORUN};background:#fafafa;padding:10px 12px;margin-bottom:10px;font-size:13px\">\n      <div style=\"font-weight:600;margin-bottom:4px\">${esc(NAMES[k])}: ${esc(headline[k])}</div>\n      ${(details[k] || []).slice(0, 8).map(l => `<div style=\"color:#4b5563;font-family:Consolas,monospace;font-size:12px\">• ${esc(l)}</div>`).join('')}\n      ${(details[k] || []).length > 8 ? `<div style=\"color:#6b7280;font-size:12px\">+${details[k].length - 8} satır daha</div>` : ''}\n      <div style=\"margin-top:6px;color:#374151\">👉 ${esc(HINTS[k])}</div></div>`;\n  }\n}\nhtml += `<div style=\"font-size:14px;font-weight:600;margin:16px 0 8px\">Genel durum</div>\n  <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"font-size:13px\">\n  ${ORDER.filter(k => k in states).map(k => `<tr><td style=\"padding:7px 0;border-bottom:1px solid #f0f1f3;width:38%\">${esc(NAMES[k])}</td><td style=\"padding:7px 0;border-bottom:1px solid #f0f1f3;width:22%\">${pill(states[k])}</td><td style=\"padding:7px 0;border-bottom:1px solid #f0f1f3;color:#6b7280\">${esc(summary[k] || '')}</td></tr>`).join('')}\n  </table>\n  <div style=\"margin-top:20px\"><a href=\"${PANEL}\" style=\"display:inline-block;background:#3b82f6;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:14px;font-weight:600\">Paneli aç</a></div>\n</td></tr>\n<tr><td style=\"padding:12px 24px;background:#f9fafb;font-size:11px;color:#9ca3af\">Bu e-posta yalnızca bir kontrolün durumu değiştiğinde gönderilir (kontrol sıklığı: 5 dk). Kaynak: n8n “Proxmox Sağlık Uyarısı”.</td></tr>\n</table></div>`;\n\nconst text = [subject, now, '', lead, '', 'Ne değişti?', ...changed.map(k => `- ${NAMES[k]}: ${wasIs(k)}`), '',\n  ...(active.length ? ['Ne yapmalı?', ...active.flatMap(k => [`* ${NAMES[k]}: ${headline[k]}`, ...(details[k] || []).slice(0, 8).map(l => `    ${l}`), `    -> ${HINTS[k]}`]), ''] : []),\n  'Genel durum:', ...ORDER.filter(k => k in states).map(k => `- ${NAMES[k]}: ${(PILL[lab(states[k])] || PILL.BILINMIYOR)[2]} — ${summary[k] || ''}`), '', `Panel: ${PANEL}`].join('\\n');\n\nreturn [{ json: { subject, html, text } }];\n"
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "Durum degisti mi?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@example.com",
+        "toEmail": "it-team@example.com",
+        "subject": "={{ $json.subject }}",
+        "emailFormat": "both",
+        "text": "={{ $json.text }}",
+        "options": {},
+        "html": "={{ $json.html }}"
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "E-posta gonder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        660,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Her 5 dakikada": {
+      "main": [
+        [
+          {
+            "node": "Panel /api/health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Panel /api/health": {
+      "main": [
+        [
+          {
+            "node": "Durum degisti mi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Durum degisti mi?": {
+      "main": [
+        [
+          {
+            "node": "E-posta gonder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Istanbul"
+  },
+  "pinData": {}
+}

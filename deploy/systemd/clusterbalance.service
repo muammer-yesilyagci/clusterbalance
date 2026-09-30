@@ -1,0 +1,10 @@
+[Unit]
+Description=ClusterBalance - Proxmox VE load balancer (single run)
+After=network-online.target pve-cluster.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/clusterbalance/balancer.py
+User=root
+Nice=10

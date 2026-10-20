@@ -479,7 +479,6 @@ Every push and pull request runs the same checks on GitHub Actions (plus `shellc
 ## Credits
 
 - **Muammer Yeşilyağcı** ([@muammer-yesilyagci](https://github.com/muammer-yesilyagci)) — maintainer; ClusterBalance v2: safety checks, maintenance mode, health cards, migration history, alerts and documentation.
-- **Cemal Demirci** ([@cemal-demirci](https://github.com/cemal-demirci)) — original author of ClusterBalance v1, the dashboard and the Proxmox widget; co-developed v2.
 
 ## License
 

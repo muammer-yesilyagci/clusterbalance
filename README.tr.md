@@ -476,7 +476,6 @@ Her push ve pull request'te aynı kontroller GitHub Actions'ta çalışır (ayr�
 ## Emeği geçenler
 
 - **Muammer Yeşilyağcı** ([@muammer-yesilyagci](https://github.com/muammer-yesilyagci)) — proje sahibi; ClusterBalance v2: güvenlik kontrolleri, bakım modu, sağlık kartları, taşıma geçmişi, uyarılar ve dokümantasyon.
-- **Cemal Demirci** ([@cemal-demirci](https://github.com/cemal-demirci)) — ClusterBalance v1'in, panelin ve Proxmox arayüz kutusunun özgün yazarı; v2'nin geliştirilmesinde birlikte çalıştı.
 
 ## Lisans
 

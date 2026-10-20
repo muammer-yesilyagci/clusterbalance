@@ -22,6 +22,8 @@ os.environ.setdefault("CB_LOG", str(_TMP / "clusterbalance.log"))
 os.environ.setdefault("CB_CONFIG", str(_TMP / "config.yaml"))
 os.environ.setdefault("CB_STATE_FILE", str(_TMP / "maintenance_state.json"))
 os.environ.setdefault("CB_USERS_FILE", str(_TMP / "users"))
+os.environ.setdefault("CB_IMPORT_JOBS", str(_TMP / "import-jobs.json"))
+os.environ.setdefault("CB_FIRST_SEEN", str(_TMP / "first_seen.json"))
 
 
 def load_fixture(name):
@@ -59,6 +61,8 @@ class FakePve:
         self.tasks = load_fixture("tasks")
         self.pbs = load_fixture("pbs")
         self.vm_configs = load_fixture("vm_configs")
+        self.backup_jobs = [{"id": "nightly", "enabled": 1, "all": 1, "storage": "pbs"}]
+        self.pools = {}
         self.migrations = []          # (vmid, source, target) actually "executed"
         self.task_exitstatus = "OK"   # what a finished migration task reports
         self.land = True              # does a migrated VM show up on the target?
@@ -86,6 +90,10 @@ class FakePve:
             return copy.deepcopy(self.ha_resources)
         if cmd.startswith("get /cluster/ha/status/current"):
             return copy.deepcopy(self.ha_status)
+        if cmd.startswith("get /cluster/backup"):
+            return copy.deepcopy(self.backup_jobs)
+        if cmd.startswith("get /pools/"):
+            return copy.deepcopy(self.pools.get(cmd.split("/")[2].split()[0], {}))
         if cmd.startswith("get /cluster/tasks"):
             return copy.deepcopy(self.tasks)
         if "/content" in cmd:

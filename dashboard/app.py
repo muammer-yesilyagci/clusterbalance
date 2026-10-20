@@ -191,6 +191,8 @@ def health_storage():
         items = list(ex.map(run, checks))
     return {"ok": all(i["mounted"] for i in items), "items": items}
 
+HA_SKIP_TAGS = {t.strip().lower() for t in os.environ.get("CB_HA_SKIP_TAGS", "no-ha").split(",") if t.strip()}
+
 def health_ha():
     items = []
     for x in pvesh("get /cluster/ha/status/current") or []:
@@ -201,7 +203,66 @@ def health_ha():
         items.append({"sid": x.get("sid"), "node": x.get("node"), "state": state,
                       "request_state": req, "group": x.get("group"), "bad": bad})
     bad = [i for i in items if i["bad"]]
-    return {"ok": not bad, "total": len(items), "bad": bad}
+    # bilgi: calisan ama HA'da olmayan VM/CT'ler (node cokerse baska node'da acilmazlar); alarm degil
+    managed = {i["sid"] for i in items}
+    unprotected = []
+    for r in get_res():
+        if r.get("type") not in ("qemu", "lxc") or r.get("template") or r.get("status") != "running":
+            continue
+        sid = ("vm:" if r["type"] == "qemu" else "ct:") + str(r["vmid"])
+        tags = {t.strip().lower() for t in re.split(r"[;,]", r.get("tags") or "") if t.strip()}
+        if sid not in managed and not tags & HA_SKIP_TAGS:
+            unprotected.append({"vmid": r["vmid"], "name": r.get("name", ""), "node": r.get("node")})
+    unprotected.sort(key=lambda u: u["vmid"])
+    return {"ok": not bad, "total": len(items), "bad": bad, "unprotected": unprotected}
+
+FIRST_SEEN_FILE = os.environ.get("CB_FIRST_SEEN", f"{CB_DIR}/first_seen.json")
+BACKUP_SKIP_TAGS = {t.strip().lower() for t in os.environ.get("CB_BACKUP_SKIP_TAGS", "temp,no-backup").split(",") if t.strip()}
+
+def _first_seen(vmids):
+    """When did the dashboard first see each guest? Guests present when the file is created count as old (0),
+    so only guests that appear later get a grace period. A deleted VMID is forgotten, so a reused ID starts over."""
+    now = int(time.time())
+    try:
+        with open(FIRST_SEEN_FILE) as f:
+            seen = {int(k): int(v) for k, v in json.load(f).items()}
+        new = {v: seen.get(v, now) for v in vmids}
+    except (OSError, ValueError):
+        new = {v: 0 for v in vmids}
+    try:
+        tmp = FIRST_SEEN_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({str(k): v for k, v in new.items()}, f)
+        os.replace(tmp, FIRST_SEEN_FILE)
+    except OSError:
+        pass
+    return new
+
+def _vm_ctime(r):
+    """Creation time Proxmox records in a VM's config (meta: ctime=...); 0 for containers or when unknown."""
+    if r.get("type") != "qemu":
+        return 0
+    cfg = pvesh(f"get /nodes/{r['node']}/qemu/{r['vmid']}/config") or {}
+    m = re.search(r"ctime=(\d+)", str(cfg.get("meta") or ""))
+    return int(m.group(1)) if m else 0
+
+def _backup_coverage(guests):
+    """VMIDs that at least one enabled backup job would include (all / VMID list / pool, node filter, exclude)."""
+    covered = set()
+    for j in pvesh("get /cluster/backup") or []:
+        if not j.get("enabled", 1) or str(j.get("enabled")) == "0":
+            continue
+        node = j.get("node")
+        on_node = {g["vmid"] for g in guests if not node or g["node"] == node}
+        exclude = {int(x) for x in re.split(r"[,\s]+", str(j.get("exclude") or "")) if x.isdigit()}
+        if j.get("all") in (1, "1", True):
+            covered |= on_node - exclude
+        if j.get("vmid"):
+            covered |= {int(x) for x in re.split(r"[,\s]+", str(j["vmid"])) if x.isdigit()} & on_node
+        if j.get("pool"):
+            members = (pvesh(f"get /pools/{j['pool']}") or {}).get("members") or []
+            covered |= {m.get("vmid") for m in members if m.get("vmid") is not None} & on_node
+    return covered
 
 @cached("health_backups", ttl=300)
 def health_backups():
@@ -209,8 +270,8 @@ def health_backups():
     storage = BACKUP_STORAGE or next((s["storage"] for s in pvesh("get /storage") or []
                                       if s.get("type") == "pbs" and not s.get("disable")), None)
     if not storage:
-        return {"ok": True, "storage": None, "total": 0, "problems": [], "newest_ok": 0,
-                "note": "PBS depolamasi bulunamadi"}
+        return {"ok": True, "storage": None, "total": 0, "problems": [], "newest_ok": 0, "pending": [],
+                "skipped": 0, "note": "PBS depolamasi bulunamadi"}
     content = pvesh(f"get /nodes/{host}/storage/{storage}/content --content backup") or []
     last = {}
     for b in content:
@@ -218,27 +279,66 @@ def health_backups():
         if v is not None and b.get("ctime", 0) > last.get(v, 0):
             last[v] = b["ctime"]
     now = time.time()
-    items = []
-    for r in get_res():
-        if r.get("type") not in ("qemu", "lxc") or r.get("template"):
+    guests = [r for r in get_res() if r.get("type") in ("qemu", "lxc") and not r.get("template")]
+    seen = _first_seen([g["vmid"] for g in guests])
+    covered = _backup_coverage(guests)
+    items, pending, skipped = [], [], 0
+    for r in guests:
+        tags = {t.strip().lower() for t in re.split(r"[;,]", r.get("tags") or "") if t.strip()}
+        if tags & BACKUP_SKIP_TAGS:
+            skipped += 1
             continue
         ts = last.get(r["vmid"])
         age_h = round((now - ts) / 3600, 1) if ts else None
-        level = "bad" if age_h is None or age_h > BACKUP_BAD_H else "warn" if age_h > BACKUP_WARN_H else "ok"
-        items.append({"vmid": r["vmid"], "name": r.get("name", ""), "age_h": age_h, "level": level,
-                      "last": datetime.fromtimestamp(ts).strftime("%d.%m %H:%M") if ts else None})
-    items.sort(key=lambda i: (i["level"] == "ok", -(i["age_h"] if i["age_h"] is not None else 1e9)))
-    return {"ok": all(i["level"] == "ok" for i in items), "storage": storage,
-            "total": len(items), "problems": [i for i in items if i["level"] != "ok"],
-            "newest_ok": sum(1 for i in items if i["level"] == "ok")}
+        item = {"vmid": r["vmid"], "name": r.get("name", ""), "age_h": age_h, "reason": None,
+                "last": datetime.fromtimestamp(ts).strftime("%d.%m %H:%M") if ts else None}
+        if r["vmid"] not in covered:
+            item.update(level="bad", reason="no_job")
+        elif age_h is None:
+            # yeni VM: ilk gece yedegi alinana kadar alarm yok
+            born = max(seen.get(r["vmid"], 0), _vm_ctime(r))
+            if born and (now - born) / 3600 < BACKUP_WARN_H:
+                item.update(level="new", reason="first_backup_pending", since_h=round((now - born) / 3600, 1))
+                pending.append(item)
+                continue
+            item["level"] = "bad"
+        else:
+            item["level"] = "bad" if age_h > BACKUP_BAD_H else "warn" if age_h > BACKUP_WARN_H else "ok"
+        items.append(item)
+    items.sort(key=lambda i: (i["level"] == "ok", i["reason"] != "no_job", -(i["age_h"] if i["age_h"] is not None else 1e9)))
+    problems = [i for i in items if i["level"] != "ok"]
+    return {"ok": not problems, "storage": storage, "total": len(items) + len(pending), "problems": problems,
+            "newest_ok": sum(1 for i in items if i["level"] == "ok"), "pending": pending, "skipped": skipped,
+            "uncovered": sum(1 for i in problems if i["reason"] == "no_job")}
+
+# Konsol oturumlari (pencere kapatildi, baglanti koptu): altyapi sorunu degil
+TASKS_IGNORE = {t.strip() for t in os.environ.get(
+    "CB_TASKS_IGNORE", "vncproxy,vncshell,spiceproxy,spiceshell,termproxy,vncterm").split(",") if t.strip()}
+# Bir VM'in guc durumu: bunlardan biri sonradan basarili olduysa onceki basarisiz guc gorevi kapanmis sayilir
+POWER_TASKS = {"qmstart", "qmstop", "qmshutdown", "qmreboot", "qmreset", "qmsuspend", "qmresume",
+               "vzstart", "vzstop", "vzshutdown", "vzreboot", "vzsuspend", "vzresume"}
 
 def health_tasks():
+    """Failed tasks of the last 24 h that are still unresolved (console sessions ignored; a later success settles it)."""
     since = time.time() - 24 * 3600
-    failed = [{"type": t.get("type"), "id": t.get("id"), "node": t.get("node"), "status": t.get("status"),
-               "time": datetime.fromtimestamp(t.get("starttime", 0)).strftime("%d.%m %H:%M")}
-              for t in pvesh("get /cluster/tasks") or []
-              if t.get("starttime", 0) >= since and t.get("status") not in (None, "OK")]
-    return {"ok": not failed, "failed": failed[:15], "count": len(failed)}
+    tasks = sorted((t for t in pvesh("get /cluster/tasks") or [] if t.get("starttime", 0) >= since),
+                   key=lambda t: t.get("starttime", 0))
+    failed, resolved, ignored = [], 0, 0
+    for i, t in enumerate(tasks):
+        if t.get("status") in (None, "OK"):
+            continue
+        if t.get("type") in TASKS_IGNORE:
+            ignored += 1
+            continue
+        same = POWER_TASKS if t.get("type") in POWER_TASKS else {t.get("type")}
+        if t.get("id") and any(u.get("status") == "OK" and u.get("type") in same and u.get("id") == t.get("id")
+                               for u in tasks[i + 1:]):
+            resolved += 1
+            continue
+        failed.append({"type": t.get("type"), "id": t.get("id"), "node": t.get("node"), "status": t.get("status"),
+                       "time": datetime.fromtimestamp(t.get("starttime", 0)).strftime("%d.%m %H:%M")})
+    failed.reverse()  # newest first
+    return {"ok": not failed, "failed": failed[:15], "count": len(failed), "resolved": resolved, "ignored": ignored}
 
 @app.route("/api/health")
 def api_health():
@@ -567,6 +667,12 @@ def api_maintenance_exit():
     _kick_balancer()
     return jsonify({"success": True, "message": f"{node} bakimdan cikarildi; VM'ler geri tasiniyor"})
 
+# ============ DISK IMAGE IMPORT (dashboard/importer.py) ============
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import importer
+importer.attach(app, sys.modules[__name__])
+
 # ============ ROUTES ============
 
 @app.route("/")
@@ -588,7 +694,7 @@ def api_r(): return jsonify(get_recs())
 def api_widget_summary():
     """Minimal, sifresiz ozet: sadece Proxmox arayuzundeki kutu icin."""
     s = get_summary() or {}
-    return jsonify({k: s.get(k) for k in ("node_count", "total", "running_vms", "avg_cpu", "avg_mem", "balanced", "max_diff")})
+    return jsonify({k: s.get(k) for k in ("node_count", "total", "running_vms", "avg_cpu", "avg_mem", "balanced", "max_diff", "balance")})
 
 def widget_origin_allowed(origin):
     m = re.match(r"^https://([A-Za-z0-9.-]+):8006$", origin or "")
@@ -859,7 +965,31 @@ def security_headers(resp):
     resp.headers["Cache-Control"] = "no-store"
     return resp
 
+import ssl
+from werkzeug.serving import WSGIRequestHandler
+
+class LazyHandshakeContext(ssl.SSLContext):
+    """TLS handshake in the request thread instead of the accept loop.
+
+    werkzeug's server accepts connections in a single thread; with a plain SSLContext the handshake runs
+    there too, so one client that connects and never finishes the handshake (a port scanner, a dropped
+    connection) blocks the whole dashboard until it is restarted."""
+
+    def wrap_socket(self, *args, **kwargs):
+        kwargs["do_handshake_on_connect"] = False
+        return super().wrap_socket(*args, **kwargs)
+
+class TimeoutRequestHandler(WSGIRequestHandler):
+    timeout = 30  # saniye: el sikismayi ya da istegi bitirmeyen istemci kapatilir
+
+def tls_context(cert, key):
+    ctx = LazyHandshakeContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+    ctx.load_cert_chain(cert, key)
+    return ctx
+
 if __name__ == "__main__":
     if not (os.path.exists(TLS_CERT) and os.path.exists(TLS_KEY)):
         raise SystemExit(f"TLS sertifikasi bulunamadi: {TLS_CERT} / {TLS_KEY}")
-    app.run(host="0.0.0.0", port=DASHBOARD_PORT, debug=False, ssl_context=(TLS_CERT, TLS_KEY))
+    app.run(host="0.0.0.0", port=DASHBOARD_PORT, debug=False, threaded=True,
+            ssl_context=tls_context(TLS_CERT, TLS_KEY), request_handler=TimeoutRequestHandler)

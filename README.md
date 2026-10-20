@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" width="112" alt="ClusterBalance logo"></p>
+
 # ClusterBalance v2
 
 **A safety-first load balancer, maintenance mode and health dashboard for Proxmox VE clusters.**
@@ -17,6 +19,7 @@ it out — but only when the move is safe and actually helps. On top of that you
 
 - a **maintenance mode** that drains a node before a reboot/upgrade and moves every VM back afterwards,
 - **placement rules** from the dashboard: keep VMs apart, keep them together, or pin them to a node,
+- **disk import**: drop a `.vhd`/`.vhdx`/`.vmdk`/`.qcow2`/`.raw`/`.ova` file on the dashboard and get a ready Proxmox VM,
 - a **web dashboard** with cluster health, migration history and settings,
 - a small **widget inside the Proxmox web UI**,
 - a **health API** you can poll for e-mail/Teams/Slack alerts (an n8n workflow is included).
@@ -42,7 +45,8 @@ migration history, and ready-made alerts.
 | 📜 **Migration history** | What moved, where, why, and whether it worked — with a balance-score chart |
 | 🌍 **English & Turkish** | TR/EN switch in the dashboard |
 | 🔒 **Secured dashboard** | HTTPS with the Proxmox certificate, login, dangerous endpoints removed |
-| ✅ **Tested** | 76 automated tests on an anonymized real cluster snapshot, CI on every push |
+| 📥 **Disk import** | Drag & drop a Hyper-V/VMware/Veeam disk (or pick it from a share) → a ready VM on the least loaded node |
+| ✅ **Tested** | 170+ automated tests on an anonymized real cluster snapshot, CI on every push |
 
 See the [CHANGELOG](CHANGELOG.md) for details.
 
@@ -59,6 +63,7 @@ See the [CHANGELOG](CHANGELOG.md) for details.
 - [Dashboard](#dashboard)
 - [Maintenance mode](#maintenance-mode)
 - [Placement rules](#placement-rules)
+- [Disk import](#disk-import)
 - [Migration history](#migration-history)
 - [Health API and alerts](#health-api-and-alerts)
 - [API reference](#api-reference)
@@ -214,6 +219,12 @@ Dashboard environment variables (set them in `clusterbalance-dashboard.service`)
 | `CB_USERS_FILE` | `/etc/clusterbalance/dashboard-users` |
 | `CB_TLS_CERT` / `CB_TLS_KEY` | `/etc/pve/local/pve-ssl.pem` / `.key` |
 | `CB_BACKUP_STORAGE` | first enabled PBS storage |
+| `CB_HA_SKIP_TAGS` | `no-ha` (running VMs with this tag are not listed as "not in HA") |
+| `CB_TASKS_IGNORE` | `vncproxy,vncshell,spiceproxy,spiceshell,termproxy,vncterm` (task types never reported) |
+| `CB_BACKUP_SKIP_TAGS` | `temp,no-backup` (guests with these tags are not checked for backups) |
+| `CB_FIRST_SEEN` | `/opt/clusterbalance/first_seen.json` (when the dashboard first saw each guest) |
+| `CB_IMPORT_MAX_GB` | `4096` (largest accepted upload) |
+| `CB_IMPORT_JOBS` | `/var/lib/clusterbalance/import-jobs.json` |
 | `CB_DIR`, `CB_CONFIG`, `CB_LOG`, `CB_STATE_FILE` | `/opt/clusterbalance`, `…/config.yaml`, `/var/log/clusterbalance.log`, `…/maintenance_state.json` |
 
 Add another dashboard user:
@@ -230,6 +241,7 @@ python3 -c "import getpass;from werkzeug.security import generate_password_hash 
 | **Nodes** | Per-node CPU/RAM/disk and the **maintenance mode** buttons |
 | **Virtual machines / Containers** | Guests with status, CPU, memory |
 | **Rules** | **Placement rules**: keep VMs apart / together / on a node, with live status |
+| **Import** | [Disk import](#disk-import): drop a disk file, get a VM |
 | **Monitoring** | Cluster CPU/RAM/disk gauges |
 | **Settings** | Balancer settings, manual dry-run, **migration history**, raw log |
 
@@ -287,6 +299,40 @@ enforce_rules: true   # false = show violations but never move VMs for them
 
 ![Placement rules](docs/screenshots/rules.jpg)
 
+## Disk import
+
+Moving from Hyper-V, VMware or a Veeam export to Proxmox usually means `qemu-img convert`, `qm disk import`
+and a dozen settings by hand. The **Import** page does it in one go:
+
+1. **Drop the disk file** on the page (or click to choose it). Supported: `.vhd`, `.vhdx`, `.vmdk`, `.qcow2`,
+   `.raw`, `.img` and `.ova`. Big files are uploaded in 32 MB chunks; if the connection drops, drop the same file
+   again and it **resumes where it stopped**. Files you copy onto the share yourself (e.g. a 500 GB disk with
+   `rsync`) show up in the list too — no upload needed.
+2. The dashboard **inspects the image**: real format (not just the extension), disk size, UEFI or BIOS and
+   Windows or Linux (from the partition table). For an OVA, the CPU/RAM/firmware from its OVF are used.
+3. A **settings dialog** opens with suggestions you can change: VM name (from the file name), next free VM ID,
+   **the least loaded node** (the same load figures the balancer uses; nodes in maintenance are skipped),
+   target storage, CPU, RAM, OS type, firmware (+ TPM for Windows 11), disk bus, network card, bridge, VLAN and
+   the VirtIO driver ISO. Windows defaults to SATA + E1000 so it boots without VirtIO drivers.
+4. **Import** creates the VM with `pvesh create /nodes/<node>/qemu … import-from=<file>`: Proxmox converts the
+   disk itself and the job shows up in its task log. The page shows the progress (per disk for an OVA), the
+   result and an *Open in Proxmox* link; optionally the VM is started and the source file deleted.
+
+**Setup:** files live in the `import/` folder of a storage with the **Import** content type
+(*Datacenter → Storage → Edit → Content*, Proxmox VE 8.2+). Use a **shared** storage (NFS/SMB) so the VM can be
+created on any node; with a local storage the VM can only be created on the dashboard node.
+
+**Safety:** file names are restricted (no paths, commas or `=`), uploads cannot leave the import folder, free space
+is checked before an upload, and images that point at other files on the host (qcow2 backing files, external data
+files, VMDK extents outside the folder) are rejected — Proxmox checks the image again as untrusted before
+converting it. A file that is being imported cannot be deleted or imported twice. Every upload, import and delete
+is written to the dashboard's audit log.
+
+![Import page](docs/screenshots/import.jpg)
+
+| ![Import settings](docs/screenshots/import-wizard.jpg) |
+|---|
+
 ## Migration history
 
 Settings → **Migration history** is built from `/var/log/clusterbalance.log` (and rotated copies). For each migration:
@@ -312,7 +358,8 @@ filters (real / test / failed / ping-pong) and a **ping-pong** badge for VMs mov
   "cluster":  { "ok": true, "quorate": true, "nodes": [{ "name": "pve1", "online": true, "uptime": 2462400 }] },
   "storage":  { "ok": false, "items": [{ "storage": "nfs-vms", "node": "pve2", "mounted": false, "path": "/mnt/nfs-vms" }] },
   "ha":       { "ok": true, "total": 25, "bad": [] },
-  "backups":  { "ok": true, "storage": "pbs", "total": 27, "newest_ok": 27, "problems": [] },
+  "backups":  { "ok": true, "storage": "pbs", "total": 28, "newest_ok": 27, "problems": [], "uncovered": 0,
+                "pending": [{ "vmid": 905, "name": "new-app", "reason": "first_backup_pending", "since_h": 3.2 }], "skipped": 0 },
   "tasks":    { "ok": true, "count": 0, "failed": [] },
   "time": "17:40:46"
 }
@@ -320,7 +367,21 @@ filters (real / test / failed / ping-pong) and a **ping-pong** badge for VMs mov
 
 Rules: a card is **bad** if quorum is lost or a node is offline; if a shared *dir* storage is not mounted on a node;
 if an HA service is in `error/fence/recovery/freeze` or not running although requested; if a VM's last PBS backup
-is older than 50 h (warning after 26 h) or missing; failed tasks are listed for the last 24 h.
+is older than 50 h (warning after 26 h) or missing; failed tasks of the last 24 h are listed unless they are console
+sessions (`vncproxy`, `termproxy`, … — `CB_TASKS_IGNORE`) or a later success settled them (a VM's start/stop/shutdown
+after a failed power task, or the same task type retried successfully on the same VM).
+
+Backups in detail:
+
+- **New VMs don't raise false alarms.** A VM without any backup that was created (Proxmox `ctime`) or first seen by
+  the dashboard less than 26 h ago is listed as *waiting for its first backup* (`pending`) and keeps the card green;
+  if it still has no backup after 26 h it becomes a problem.
+- **VMs no backup job covers are always a problem** (`reason: "no_job"`), new or not — the enabled jobs under
+  *Datacenter → Backup* are evaluated (all / VMID list / pool, node filter, exclude list).
+- VMs tagged `temp` or `no-backup` are not checked (`CB_BACKUP_SKIP_TAGS`).
+
+The HA card also lists, as information (no alarm, no e-mail), running VMs that are **not HA-managed** — they will not
+restart on another node if theirs fails (`unprotected` in the API). Tag a VM `no-ha` to leave it out on purpose (`CB_HA_SKIP_TAGS`).
 
 **n8n workflow** — [`alerts/n8n-health-alert.json`](alerts/n8n-health-alert.json):
 polls `/api/health` every 5 minutes and sends an HTML e-mail **only when a state changes**
@@ -347,6 +408,13 @@ All endpoints need HTTP Basic auth except `/api/widget-summary`.
 | `GET/POST /api/config` | Read / change balancer settings |
 | `GET /api/rules` | Rules with live status, tag rules, VM/node lists |
 | `POST /api/rules` `{"rules":[…]}` | Replace the rule list (validated; errors as codes) |
+| `GET /api/import/storages`, `/api/import/files` | Import-enabled storages; files in their `import/` folders (incl. unfinished uploads) |
+| `POST /api/import/upload` `{"storage","file","size"}` → `PUT /api/import/upload?storage=&file=&offset=&size=` | Start/resume an upload, then send ≤ 64 MB chunks |
+| `DELETE /api/import/file?storage=&file=[&partial=1]` | Delete an import file (or an unfinished upload) |
+| `GET /api/import/inspect?storage=&file=` | Format, size, firmware/OS guess, safety check |
+| `GET /api/import/options[?node=]` | Nodes + recommended node, storages, bridges, next VM ID, VirtIO ISOs |
+| `POST /api/import/start` | Create the VM from the file (all fields validated; errors as codes) |
+| `GET /api/import/jobs` | Import jobs with progress and result |
 | `POST /api/proxmox/run-balance` | Run the balancer in dry-run now |
 | `GET /api/proxmox/balance-status` | Last 50 log lines |
 | `GET /api/summary`, `/api/nodes`, `/api/guests`, `/api/distribution`, `/api/top`, `/api/recommendations` | Data for the dashboard pages |
@@ -357,7 +425,7 @@ All endpoints need HTTP Basic auth except `/api/widget-summary`.
 - The balancer and the dashboard run as **root** (they use `pvesh` and SSH to the other nodes). Treat the dashboard like the Proxmox UI: keep it on the management network, never expose it to the internet.
 - The dashboard only works over HTTPS and every endpoint except the widget summary requires a login. There is no CORS for other origins.
 - Passwords are stored as werkzeug hashes. Use a dedicated user for automation (n8n).
-- The dashboard can change the balancer configuration and put nodes into maintenance — i.e. it can cause live migrations. It cannot run arbitrary commands.
+- The dashboard can change the balancer configuration and put nodes into maintenance — i.e. it can cause live migrations — and create VMs from disk images in the storages' `import/` folders. It cannot run arbitrary commands.
 - Built-in Flask/werkzeug server: fine for a handful of admins; put it behind a reverse proxy if you need more.
 
 ## Troubleshooting

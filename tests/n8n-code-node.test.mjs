@@ -57,6 +57,17 @@ test('backup warnings are UYARI, not SORUN', () => {
   assert.match(mail.json.subject, /^\[UYARI\]/);
 });
 
+test('a guest outside every backup job is named in the mail', () => {
+  const st = {};
+  run(healthy(), st);
+  const h = healthy();
+  h.backups = { ok: false, total: 20, newest_ok: 19, uncovered: 1, pending: [],
+                problems: [{ vmid: 905, name: 'new-app', last: null, age_h: null, level: 'bad', reason: 'no_job' }] };
+  const [mail] = run(h, st);
+  assert.match(mail.json.subject, /^\[SORUN\].*hiçbir yedekleme işinde yok/);
+  assert.match(mail.json.text, /905 new-app: hiçbir yedekleme işine dahil değil/);
+});
+
 test('each new failed task alerts once', () => {
   const st = {};
   run(healthy(), st);

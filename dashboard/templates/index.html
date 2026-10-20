@@ -4,149 +4,248 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClusterBalance — Proxmox Load Balancer</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%231c1c1e'/%3E%3Crect x='8' y='33' width='84' height='34' rx='17' fill='none' stroke='%23fff' stroke-width='8'/%3E%3Cellipse cx='50' cy='50' rx='11' ry='9' fill='%2330d158'/%3E%3C/svg%3E">
+    <script>try { var th = localStorage.getItem('cbTheme'); if (th) document.documentElement.dataset.theme = th; } catch (e) {}</script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* Tema: sade koyu. Renk yalnizca anlam tasiyorsa kullanilir:
-           --accent = etkilesim/secim, --ok/--warn/--bad = durum, --cpu/--ram/--disk = veri serileri */
+        /* Tema: macOS penceresi (acik + koyu). Koyu: sistem tercihi ya da data-theme="dark".
+           Renk yalnizca anlam tasiyorsa: --accent = etkilesim, --ok/--warn/--bad = durum, --cpu/--ram/--bal = veri. */
         :root {
-            --sidebar: 260px;
-            --bg: #0e1116; --surface: #161a21; --surface-2: #1c212a; --line: #262c36;
-            --text: #e6e8eb; --muted: #8b939e; --faint: #5d6570;
-            --accent: #3b82f6; --accent-soft: rgba(59,130,246,0.14);
-            --ok: #22c55e; --warn: #eab308; --bad: #ef4444;
-            --cpu: #60a5fa; --ram: #a78bfa; --disk: #94a3b8;
+            --sidebar: 236px;
+            --wall: radial-gradient(1200px 700px at 12% 8%, #c9dcff 0%, transparent 60%), radial-gradient(900px 700px at 92% 20%, #ffd6e4 0%, transparent 55%), radial-gradient(1000px 800px at 60% 100%, #d8f5e4 0%, transparent 60%), #eef1f6;
+            --window: rgba(255,255,255,0.90); --side: rgba(240,241,245,0.80);
+            --surface: #ffffff; --surface-2: rgba(120,120,128,0.12); --surface-3: #f2f2f7;
+            --line: rgba(60,60,67,0.14); --track: rgba(120,120,128,0.18); --grid: rgba(60,60,67,0.10);
+            --text: #1d1d1f; --text-2: #3a3a3c; --muted: #6e6e73; --faint: #737378;
+            --accent: #007aff; --accent-hover: #0062cc; --accent-soft: rgba(0,122,255,0.12);
+            --ok: #30d158; --warn: #ff9f0a; --bad: #ff3b30;
+            --ok-text: #1f7a37; --warn-text: #995700; --bad-text: #d70015;
+            --ok-soft: rgba(52,199,89,0.14); --warn-soft: rgba(255,159,10,0.16); --bad-soft: rgba(255,59,48,0.12);
+            --cpu: #0a84ff; --ram: #ff375f; --disk: #8e8e93; --bal: #30d158;
+            --shadow: 0 1px 2px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.05);
+            --scrim: rgba(30,30,40,0.28); --nav-active: rgba(0,0,0,0.07); --knob: #ffffff;
+            color-scheme: light;
         }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
-        .sidebar { width: var(--sidebar); transition: transform 0.3s; background: #12161c !important; border-color: var(--line) !important; }
-        .main { margin-left: var(--sidebar); transition: margin 0.3s; }
-        .glass { background: var(--surface); border-color: var(--line) !important; }
-        header.glass { background: rgba(14,17,22,0.92); backdrop-filter: blur(8px); }
-        .gradient-bg { background: var(--bg); }
-        .border-white\/10 { border-color: var(--line) !important; }
-        .nav-item { transition: background 0.15s, color 0.15s; border-left: 3px solid transparent; color: var(--muted) !important; }
-        .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text) !important; }
-        .nav-item.active { background: var(--accent-soft); border-left-color: var(--accent); color: var(--text) !important; }
-        .card { transition: border-color 0.2s; }
-        .card:hover { border-color: #333a45 !important; }
+        :root[data-theme="dark"] {
+            --wall: radial-gradient(900px 600px at 15% 10%, #2b2160 0%, transparent 60%), radial-gradient(900px 700px at 85% 25%, #0d3d5f 0%, transparent 60%), radial-gradient(1100px 700px at 50% 110%, #4a1b44 0%, transparent 60%), #111018;
+            --window: rgba(28,28,30,0.92); --side: rgba(44,44,48,0.80);
+            --surface: #2c2c2e; --surface-2: rgba(118,118,128,0.24); --surface-3: rgba(255,255,255,0.05);
+            --line: rgba(84,84,88,0.55); --track: rgba(118,118,128,0.32); --grid: rgba(255,255,255,0.08);
+            --text: #f5f5f7; --text-2: #d1d1d6; --muted: #a1a1a6; --faint: #98989d;
+            --accent: #0a84ff; --accent-hover: #409cff; --accent-soft: rgba(10,132,255,0.22);
+            --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a;
+            --ok-text: #4cd97b; --warn-text: #ffb340; --bad-text: #ff7a70;
+            --ok-soft: rgba(48,209,88,0.18); --warn-soft: rgba(255,159,10,0.2); --bad-soft: rgba(255,69,58,0.2);
+            --cpu: #64d2ff; --ram: #ff375f; --disk: #98989d; --bal: #30d158;
+            --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.28);
+            --scrim: rgba(0,0,0,0.5); --nav-active: rgba(255,255,255,0.10); --knob: #ffffff;
+            color-scheme: dark;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --wall: radial-gradient(900px 600px at 15% 10%, #2b2160 0%, transparent 60%), radial-gradient(900px 700px at 85% 25%, #0d3d5f 0%, transparent 60%), radial-gradient(1100px 700px at 50% 110%, #4a1b44 0%, transparent 60%), #111018;
+                --window: rgba(28,28,30,0.92); --side: rgba(44,44,48,0.80);
+                --surface: #2c2c2e; --surface-2: rgba(118,118,128,0.24); --surface-3: rgba(255,255,255,0.05);
+                --line: rgba(84,84,88,0.55); --track: rgba(118,118,128,0.32); --grid: rgba(255,255,255,0.08);
+                --text: #f5f5f7; --text-2: #d1d1d6; --muted: #a1a1a6; --faint: #98989d;
+                --accent: #0a84ff; --accent-hover: #409cff; --accent-soft: rgba(10,132,255,0.22);
+                --ok: #30d158; --warn: #ff9f0a; --bad: #ff453a;
+                --ok-text: #4cd97b; --warn-text: #ffb340; --bad-text: #ff7a70;
+                --ok-soft: rgba(48,209,88,0.18); --warn-soft: rgba(255,159,10,0.2); --bad-soft: rgba(255,69,58,0.2);
+                --cpu: #64d2ff; --ram: #ff375f; --disk: #98989d; --bal: #30d158;
+                --shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 8px 24px rgba(0,0,0,0.28);
+                --scrim: rgba(0,0,0,0.5); --nav-active: rgba(255,255,255,0.10); --knob: #ffffff;
+                color-scheme: dark;
+            }
+        }
+        html { background: #eef1f6; }
+        :root[data-theme="dark"] { background: #111018; }
+        body { font-family: 'Figtree', system-ui, sans-serif; color: var(--text); background: var(--wall); background-attachment: fixed; -webkit-font-smoothing: antialiased; }
+        .app-wall { padding: 14px; min-height: 100vh; box-sizing: border-box; }
+        .app-window { margin: 0 auto; min-height: calc(100vh - 28px); display: flex; border-radius: 14px; overflow: clip; background: var(--window); box-shadow: 0 30px 80px rgba(20,30,60,0.22), 0 0 0 1px var(--line); }
+        .sidebar { width: var(--sidebar); flex: none; background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 12px 12px; }
+        .brand { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px; }
+        .brand-icon { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(180deg, #3a3a3c, #0b0b0d); color: #fff; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.12); }
+        .nav-group { margin: 16px 10px 4px; font-size: 11px; font-weight: 700; color: var(--muted); }
+        .nav-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 7px; color: var(--text) !important; font-size: 14px; text-decoration: none; transition: background 0.15s; }
+        .nav-item i { width: 18px; text-align: center; color: var(--accent); font-size: 14px; }
+        .nav-item:hover { background: var(--surface-2); }
+        .nav-item.active { background: var(--nav-active); font-weight: 600; }
+        .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+        .toolbar { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 8px 20px; border-bottom: 1px solid var(--line); background: var(--window); backdrop-filter: blur(20px); }
+        .tb-btn { width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text); }
+        .tb-btn:hover { background: var(--track); }
+        .content { padding: 18px 24px 32px; }
+        .page-title { margin: 0 0 14px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+        .glass { background: var(--surface) !important; border-color: var(--line) !important; box-shadow: var(--shadow); }
+        .rounded-xl { border-radius: 16px !important; }
+        .card { transition: box-shadow 0.2s; }
+        .card:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 10px 28px rgba(0,0,0,0.08); }
         .progress-bar { transition: width 0.5s ease; }
         .page { display: none; }
         .page.active { display: block; }
-        .icon-tile { background: rgba(255,255,255,0.05); color: var(--muted); }
-        .tag { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; background: rgba(255,255,255,0.07); color: var(--muted); }
-        .tag-kritik { background: rgba(239,68,68,0.15); color: #fca5a5; }
-        .tag-onemli, .tag-hub, .tag-test, .tag-altyapi { background: rgba(255,255,255,0.07); color: var(--muted); }
+        .icon-tile { background: var(--accent-soft); color: var(--accent); }
+        .tag { font-size: 0.7rem; padding: 2px 7px; border-radius: 6px; background: var(--surface-2); color: var(--muted); }
+        .tag-kritik { background: var(--bad-soft); color: var(--bad-text); }
+        .tag-onemli, .tag-hub, .tag-test, .tag-altyapi { background: var(--surface-2); color: var(--muted); }
         .btn-orange { background: var(--accent); color: #fff; }
-        .btn-orange:hover { background: #2563eb; }
-        .btn-secondary { background: var(--surface-2); border: 1px solid var(--line); color: var(--text); }
-        .btn-secondary:hover { background: #232934; }
-        .toggle-switch { position: relative; display: inline-block; width: 48px; height: 24px; }
+        .btn-orange:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--surface-2); border: 0; color: var(--text); }
+        .btn-secondary:hover { background: var(--track); }
+        .toggle-switch { position: relative; display: inline-block; width: 46px; height: 28px; }
         .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #2a303a; border-radius: 24px; transition: 0.3s; }
-        .toggle-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
-        input:checked + .toggle-slider { background: var(--accent); }
-        input:checked + .toggle-slider:before { transform: translateX(24px); }
-        input, select { background: var(--surface-2) !important; border-color: var(--line) !important; }
-        input:focus, select:focus { outline: none; border-color: var(--accent) !important; }
-        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
-        .status-success { background: rgba(34,197,94,0.12); color: #4ade80; }
-        .status-warning { background: rgba(234,179,8,0.12); color: #facc15; }
-        .status-error { background: rgba(239,68,68,0.12); color: #f87171; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--track); border-radius: 28px; transition: 0.25s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 24px; width: 24px; left: 2px; bottom: 2px; background: var(--knob); border-radius: 50%; transition: 0.25s; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input:checked + .toggle-slider { background: var(--ok); }
+        input:checked + .toggle-slider:before { transform: translateX(18px); }
+        input, select, textarea { background: var(--surface-2) !important; border-color: transparent !important; color: var(--text); border-radius: 8px !important; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent) !important; box-shadow: 0 0 0 3px var(--accent-soft); }
+        input[type="checkbox"] { accent-color: var(--accent); }
+        .imp-drop { border-color: var(--track); transition: border-color 0.15s, background 0.15s; }
+        .imp-drop:hover, .imp-drop:focus-visible, .imp-drop.drag { border-color: var(--accent); background: var(--accent-soft); outline: none; }
+        .imp-drop.disabled { opacity: 0.5; pointer-events: none; }
+        .imp-bar { height: 6px; border-radius: 3px; background: var(--track); overflow: hidden; }
+        .imp-bar > div { height: 100%; background: var(--accent); transition: width 0.3s; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .status-success { background: var(--ok-soft); color: var(--ok-text); }
+        .status-warning { background: var(--warn-soft); color: var(--warn-text); }
+        .status-error { background: var(--bad-soft); color: var(--bad-text); }
         .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
         .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
-        .hc-ok { border-left: 3px solid var(--ok) !important; }
-        .hc-warn { border-left: 3px solid var(--warn) !important; }
-        .hc-bad { border-left: 3px solid var(--bad) !important; }
+        .hc-bad#hc-tasks { box-shadow: var(--shadow), inset 0 0 0 1px var(--bad-soft); }
         .hist-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
-        .hist-scroll::-webkit-scrollbar-thumb { background: #2f3642; border-radius: 4px; }
+        .hist-scroll::-webkit-scrollbar-thumb { background: var(--track); border-radius: 4px; }
         .hist-scroll::-webkit-scrollbar-track { background: transparent; }
-        .hist-scroll { scrollbar-width: thin; scrollbar-color: #2f3642 transparent; }
+        .hist-scroll { scrollbar-width: thin; scrollbar-color: var(--track) transparent; }
         .text-cpu { color: var(--cpu); } .text-ram { color: var(--ram); } .text-disk { color: var(--disk); }
         .bg-cpu { background: var(--cpu); } .bg-ram { background: var(--ram); }
-        .lang-btn { color: var(--muted); background: transparent; }
-        .lang-btn.active { background: var(--accent-soft); color: var(--text); }
+        .seg { display: flex; background: var(--surface-2); border-radius: 8px; padding: 2px; }
+        .lang-btn { border: 0; border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--text); background: transparent; }
+        .lang-btn.active { background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,0.15); font-weight: 700; }
+        .ring { transition: stroke-dasharray 0.8s ease; }
+        .hero-stat p:first-child { margin: 0; font-size: 13px; font-weight: 700; }
+        .hero-stat p:last-child { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.01em; }
+        .cb-toast { position: fixed; bottom: 16px; right: 16px; padding: 10px 16px; border-radius: 12px; font-size: 14px; font-weight: 600; z-index: 60; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+        .cb-toast.ok { background: #248a3d; } .cb-toast.bad { background: #d70015; }
+        /* Tailwind renk siniflari -> tema degiskenleri */
+        .text-white { color: var(--text) !important; }
+        .text-gray-100 { color: var(--text) !important; } .text-gray-300 { color: var(--text-2) !important; }
         .text-gray-400 { color: var(--muted) !important; } .text-gray-500 { color: var(--faint) !important; }
+        .hover\:text-white:hover { color: var(--text) !important; } .hover\:text-gray-300:hover { color: var(--text-2) !important; }
+        .bg-white\/5, .bg-black\/30, .bg-black\/40 { background: var(--surface-3) !important; }
+        .bg-white\/10 { background: var(--track) !important; }
+        .hover\:bg-white\/5:hover, .hover\:bg-white\/10:hover, .hover\:bg-white\/20:hover { background: var(--surface-2) !important; }
+        .border-white\/10, .border-white\/5 { border-color: var(--line) !important; }
+        .bg-green-500\/20, .bg-green-500\/10 { background: var(--ok-soft) !important; } .text-green-400 { color: var(--ok-text) !important; }
+        .bg-red-500\/10 { background: var(--bad-soft) !important; } .text-red-400 { color: var(--bad-text) !important; }
+        .bg-yellow-500\/10 { background: var(--warn-soft) !important; } .bg-gray-500\/20 { background: var(--surface-2) !important; }
+        .border-red-500 { border-color: var(--bad) !important; } .border-green-500 { border-color: var(--ok) !important; } .border-yellow-500 { border-color: var(--warn) !important; }
+        .content .grid > * { min-width: 0; }
+        .content .gap-6 { gap: 16px !important; } .content .mb-6 { margin-bottom: 16px !important; } .content .p-6 { padding: 18px !important; }
+        .hc-body { max-height: 220px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--track) transparent; }
+        @media (min-width: 1800px) { #nodeCards { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; } }
+        .hc-body { overflow-wrap: anywhere; }
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); position: fixed; z-index: 50; height: 100vh; }
-            .sidebar.open { transform: translateX(0); }
-            .main { margin-left: 0; }
+            .app-wall { padding: 0; }
+            #lastUpdate { display: none; }
+            .app-window { border-radius: 0; min-height: 100vh; box-shadow: none; }
+            .sidebar { position: fixed; top: 0; left: 0; height: 100vh; z-index: 50; transform: translateX(-100%); transition: transform 0.3s; background: var(--surface); box-shadow: 0 0 40px rgba(0,0,0,0.25); }
+            .sidebar.open { transform: none; }
+            .content { padding: 18px 16px 32px; }
+            .page-title { font-size: 26px; }
         }
     </style>
 </head>
-<body class="gradient-bg min-h-screen text-white">
+<body>
+<div class="app-wall"><div class="app-window">
     <!-- Sidebar -->
-    <aside id="sidebar" class="sidebar fixed top-0 left-0 h-full bg-slate-900/95 border-r border-white/10 z-40">
-        <div class="p-4 border-b border-white/10">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg flex items-center justify-center" style="background:var(--accent)">
-                    <i class="fas fa-balance-scale"></i>
-                </div>
-                <div>
-                    <h1 class="font-bold">ClusterBalance</h1>
-                    <p class="text-xs text-gray-400">Proxmox Load Balancer</p>
-                </div>
-            </div>
+    <aside id="sidebar" class="sidebar">
+        <div class="brand">
+            <div class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 100 100"><rect x="8" y="33" width="84" height="34" rx="17" fill="#fff" fill-opacity=".2" stroke="#fff" stroke-width="7"></rect><line x1="35" y1="40" x2="35" y2="60" stroke="#fff" stroke-width="5" stroke-linecap="round"></line><line x1="65" y1="40" x2="65" y2="60" stroke="#fff" stroke-width="5" stroke-linecap="round"></line><ellipse cx="50" cy="50" rx="10" ry="8" fill="#30d158"></ellipse></svg></div>
+            <div><p class="font-bold leading-tight">ClusterBalance</p><p class="text-xs text-gray-400">Proxmox Load Balancer</p></div>
         </div>
-        <nav class="p-2 space-y-1">
-            <a href="#" onclick="showPage('dashboard')" class="nav-item active flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="dashboard">
-                <i class="fas fa-chart-pie w-5"></i> <span data-i18n="nav.dashboard">Dashboard</span>
+        <nav class="flex flex-col" style="position:sticky;top:12px">
+            <p class="nav-group" data-i18n="nav.grp_cluster">Cluster</p>
+            <a href="#" onclick="showPage('dashboard')" class="nav-item active" data-page="dashboard">
+                <i class="fas fa-chart-pie"></i> <span data-i18n="nav.dashboard">Genel Bakış</span>
             </a>
-            <a href="#" onclick="showPage('nodes')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="nodes">
-                <i class="fas fa-server w-5"></i> <span data-i18n="nav.nodes">Node'lar</span>
+            <a href="#" onclick="showPage('nodes')" class="nav-item" data-page="nodes">
+                <i class="fas fa-server"></i> <span data-i18n="nav.nodes">Node'lar</span>
             </a>
-            <a href="#" onclick="showPage('vms')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="vms">
-                <i class="fas fa-desktop w-5"></i> <span data-i18n="nav.vms">Sanal Makineler</span>
+            <a href="#" onclick="showPage('vms')" class="nav-item" data-page="vms">
+                <i class="fas fa-desktop"></i> <span data-i18n="nav.vms">Sanal Makineler</span>
             </a>
-            <a href="#" onclick="showPage('containers')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="containers">
-                <i class="fas fa-cube w-5"></i> <span data-i18n="nav.containers">Container'lar</span>
+            <a href="#" onclick="showPage('containers')" class="nav-item" data-page="containers">
+                <i class="fas fa-cube"></i> <span data-i18n="nav.containers">Container'lar</span>
             </a>
-            <a href="#" onclick="showPage('balance')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="balance">
-                <i class="fas fa-balance-scale w-5"></i> <span data-i18n="nav.balance">Dengeleme</span>
+            <p class="nav-group" data-i18n="nav.grp_auto">Otomasyon</p>
+            <a href="#" onclick="showPage('balance')" class="nav-item" data-page="balance">
+                <i class="fas fa-balance-scale"></i> <span data-i18n="nav.balance">Dengeleme</span>
             </a>
-            <a href="#" onclick="showPage('rules')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="rules">
-                <i class="fas fa-list-check w-5"></i> <span data-i18n="nav.rules">Kurallar</span>
+            <a href="#" onclick="showPage('rules')" class="nav-item" data-page="rules">
+                <i class="fas fa-list-check"></i> <span data-i18n="nav.rules">Kurallar</span>
             </a>
-            <a href="#" onclick="showPage('monitor')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="monitor">
-                <i class="fas fa-chart-line w-5"></i> <span data-i18n="nav.monitor">İzleme</span>
+            <p class="nav-group" data-i18n="nav.grp_tools">Araçlar</p>
+            <a href="#" onclick="showPage('import')" class="nav-item" data-page="import">
+                <i class="fas fa-file-import"></i> <span data-i18n="nav.import">İçe Aktar</span>
             </a>
-            <div class="border-t border-white/10 my-2"></div>
-            <a href="#" onclick="showPage('settings')" class="nav-item flex items-center gap-3 px-4 py-3 rounded-r-lg text-gray-300" data-page="settings">
-                <i class="fas fa-cog w-5"></i> <span data-i18n="nav.settings">Ayarlar</span>
+            <a href="#" onclick="showPage('monitor')" class="nav-item" data-page="monitor">
+                <i class="fas fa-chart-line"></i> <span data-i18n="nav.monitor">İzleme</span>
+            </a>
+            <div style="height:1px;background:var(--line);margin:14px 10px 10px"></div>
+            <a href="#" onclick="showPage('settings')" class="nav-item" data-page="settings">
+                <i class="fas fa-gear"></i> <span data-i18n="nav.settings">Ayarlar</span>
             </a>
         </nav>
-        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
-            <p class="text-xs text-gray-500 text-center"><a href="https://github.com/muammer-yesilyagci/clusterbalance" id="gh-link" target="_blank" class="hover:text-gray-300">ClusterBalance v2.0</a></p>
-        </div>
+        <p class="text-xs text-gray-500 text-center pt-3" style="margin-top:auto"><a href="https://github.com/muammer-yesilyagci/clusterbalance" id="gh-link" target="_blank" rel="noopener" class="hover:text-gray-300">ClusterBalance v2.1</a></p>
     </aside>
 
     <!-- Main Content -->
-    <main class="main min-h-screen">
-        <!-- Header -->
-        <header class="glass border-b border-white/10 sticky top-0 z-30">
-            <div class="flex items-center justify-between px-6 py-3">
-                <div class="flex items-center gap-4">
-                    <button onclick="toggleSidebar()" class="md:hidden p-2 hover:bg-white/10 rounded">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                    <h2 id="pageTitle" class="text-lg font-semibold">Dashboard</h2>
-                </div>
-                <div class="flex items-center gap-4">
-                    <div class="flex rounded-lg overflow-hidden border text-xs" style="border-color:var(--line)" data-i18n-title="hdr.lang" title="Dil">
-                        <button onclick="setLang('tr')" data-lang="tr" class="lang-btn px-2 py-1">TR</button>
-                        <button onclick="setLang('en')" data-lang="en" class="lang-btn px-2 py-1">EN</button>
-                    </div>
-                    <span id="lastUpdate" class="text-sm text-gray-400"></span>
-                    <button onclick="refreshAll()" class="px-4 py-2 btn-orange rounded-lg text-sm font-medium transition flex items-center gap-2">
-                        <i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Yenile</span>
-                    </button>
-                </div>
+    <main class="main">
+        <header class="toolbar">
+            <button onclick="toggleSidebar()" class="md:hidden tb-btn" data-i18n-title="hdr.menu" title="Menü" aria-label="Menü"><i class="fas fa-bars"></i></button>
+            <span id="lastUpdate" class="text-sm text-gray-400"></span>
+            <div class="flex-1"></div>
+            <div class="seg" role="group" data-i18n-title="hdr.lang" title="Dil">
+                <button onclick="setLang('tr')" data-lang="tr" class="lang-btn">TR</button>
+                <button onclick="setLang('en')" data-lang="en" class="lang-btn">EN</button>
             </div>
+            <button id="themeBtn" onclick="toggleTheme()" class="tb-btn"><i class="fas fa-moon"></i></button>
+            <button onclick="refreshAll()" class="px-4 py-2 btn-orange rounded-lg text-sm font-semibold flex items-center gap-2">
+                <i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Yenile</span>
+            </button>
         </header>
 
-        <div class="p-6">
+        <div class="content">
+            <h1 id="pageTitle" class="page-title">Genel Bakış</h1>
             <!-- Dashboard Page -->
             <div id="page-dashboard" class="page active">
+                <!-- Halkalar: denge / RAM / CPU -->
+                <section class="glass rounded-xl border p-6 mb-6 flex flex-wrap items-center gap-6">
+                    <svg width="148" height="148" viewBox="0 0 176 176" role="img" data-i18n-title="dash.rings" aria-labelledby="hero-title" style="flex:none">
+                        <circle cx="88" cy="88" r="74" fill="none" style="stroke:var(--bal);stroke-opacity:.18" stroke-width="16"></circle>
+                        <circle id="ring-bal" class="ring" cx="88" cy="88" r="74" fill="none" style="stroke:var(--bal)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 465" transform="rotate(-90 88 88)"></circle>
+                        <circle cx="88" cy="88" r="56" fill="none" style="stroke:var(--ram);stroke-opacity:.16" stroke-width="16"></circle>
+                        <circle id="ring-ram" class="ring" cx="88" cy="88" r="56" fill="none" style="stroke:var(--ram)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 352" transform="rotate(-90 88 88)"></circle>
+                        <circle cx="88" cy="88" r="38" fill="none" style="stroke:var(--cpu);stroke-opacity:.18" stroke-width="16"></circle>
+                        <circle id="ring-cpu" class="ring" cx="88" cy="88" r="38" fill="none" style="stroke:var(--cpu)" stroke-width="16" stroke-linecap="round" stroke-dasharray="0 239" transform="rotate(-90 88 88)"></circle>
+                    </svg>
+                    <div class="flex-1" style="min-width:260px">
+                        <h2 id="hero-title" class="text-2xl font-extrabold" style="letter-spacing:-0.01em">-</h2>
+                        <p id="hero-sub" class="text-sm text-gray-400 mt-1" style="max-width:560px"></p>
+                        <div class="flex flex-wrap gap-x-8 gap-y-3 mt-4">
+                            <div class="hero-stat"><p style="color:var(--ok-text)" data-i18n="dash.r_bal">Denge</p><p id="val-bal">-</p></div>
+                            <div class="hero-stat"><p style="color:var(--ram)">RAM</p><p id="val-ram">-</p></div>
+                            <div class="hero-stat"><p style="color:var(--cpu)">CPU</p><p id="stat-cpu">-</p></div>
+                            <div class="hero-stat"><p class="text-gray-400" data-i18n="stat.node">Node</p><p id="stat-nodes">-</p></div>
+                            <div class="hero-stat"><p class="text-gray-400">VM/CT</p><p id="stat-guests">-</p></div>
+                        </div>
+                    </div>
+                </section>
                 <!-- Saglik Kartlari -->
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-semibold text-lg flex items-center gap-2"><i class="fas fa-heart-pulse text-gray-400"></i> <span data-i18n="hc.title">Sistem Sağlığı</span></h2>
@@ -172,12 +271,16 @@
                             <p class="font-semibold text-gray-100 mb-1" data-i18n="hc.ha">HA Servisleri</p>
                             <p><span class="dot ok"></span><span data-i18n="lg.ha_ok">Tüm servisler olması gereken durumda</span></p>
                             <p><span class="dot bad"></span><span data-i18n="lg.ha_bad">Bir servis error / fence / recovery durumunda ya da çalışması gerekirken çalışmıyor</span></p>
+                            <p><span class="dot" style="background:var(--accent)"></span><span data-i18n="lg.ha_unprot">Bilgi: çalışan ama HA'da olmayan VM'ler (node çökerse başka node'da açılmaz); "no-ha" etiketliler listelenmez</span></p>
                         </div>
                         <div>
                             <p class="font-semibold text-gray-100 mb-1" data-i18n="hc.backups">Yedekler (PBS)</p>
                             <p><span class="dot ok"></span><span data-i18n="lg.bk_ok">Tüm VM'ler son 26 saatte yedeklendi</span></p>
                             <p><span class="dot warn"></span><span data-i18n="lg.bk_warn">Son yedek 26 saatten eski</span></p>
                             <p><span class="dot bad"></span><span data-i18n="lg.bk_bad">Son yedek 50 saatten eski veya hiç yedek yok</span></p>
+                            <p><span class="dot bad"></span><span data-i18n="lg.bk_nojob">VM hiçbir yedekleme işinde yok (hiç yedeklenmeyecek)</span></p>
+                            <p><span class="dot" style="background:var(--accent)"></span><span data-i18n="lg.bk_new">Yeni VM: ilk 26 saat alarm yok, ilk gece yedeği beklenir</span></p>
+                            <p class="text-gray-500" data-i18n="lg.bk_skip">"temp" ya da "no-backup" etiketli VM'ler kontrol edilmez</p>
                         </div>
                     </div>
                     <p class="text-gray-500 mt-3" data-i18n="lg.footer">Son 24 saatte başarısız bir Proxmox görevi (migration, yedek vb.) olursa kartların altında ayrı bir kırmızı kutu açılır. Veriler 30 saniyede bir yenilenir; yedek bilgisi 5 dakikada bir güncellenir.</p>
@@ -189,63 +292,15 @@
                     <div class="glass rounded-xl p-4 border border-white/10" id="hc-backups"><p class="text-sm text-gray-400" data-i18n="hc.backups">Yedekler (PBS)</p><div class="hc-body text-sm mt-2"><span data-i18n="common.loading">Yükleniyor...</span></div></div>
                 </div>
                 <div id="hc-tasks" class="hidden glass rounded-xl p-4 border hc-bad mb-6"><p class="text-sm text-red-400 font-medium mb-2"><i class="fas fa-triangle-exclamation"></i> <span data-i18n="hc.failed_tasks">Son 24 saatte başarısız görevler</span></p><div class="hc-body text-xs font-mono text-gray-300"></div></div>
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <div class="glass rounded-xl p-4 border border-white/10 card">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-400 text-sm" data-i18n="stat.node">Node</p>
-                                <p id="stat-nodes" class="text-2xl font-bold">-</p>
-                            </div>
-                            <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
-                                <i class="fas fa-server"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass rounded-xl p-4 border border-white/10 card">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-400 text-sm">VM/CT</p>
-                                <p id="stat-guests" class="text-2xl font-bold">-</p>
-                            </div>
-                            <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
-                                <i class="fas fa-desktop"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass rounded-xl p-4 border border-white/10 card">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-400 text-sm" data-i18n="stat.avg_cpu">Ort. CPU</p>
-                                <p id="stat-cpu" class="text-2xl font-bold">-</p>
-                            </div>
-                            <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
-                                <i class="fas fa-microchip"></i>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="glass rounded-xl p-4 border border-white/10 card">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-400 text-sm" data-i18n="stat.balance">Denge</p>
-                                <p id="stat-balance" class="text-2xl font-bold">-</p>
-                            </div>
-                            <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center">
-                                <i class="fas fa-balance-scale"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Charts Row -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                     <div class="glass rounded-xl p-4 border border-white/10">
                         <h3 class="font-semibold mb-4" data-i18n="dash.dist">VM/CT Dağılımı</h3>
-                        <div style="position:relative;height:300px"><canvas id="chartDist"></canvas></div>
+                        <div style="position:relative;height:230px"><canvas id="chartDist"></canvas></div>
                     </div>
                     <div class="glass rounded-xl p-4 border border-white/10">
                         <h3 class="font-semibold mb-4" data-i18n="dash.resources">Kaynak Kullanımı</h3>
-                        <div style="position:relative;height:300px"><canvas id="chartResource"></canvas></div>
+                        <div style="position:relative;height:230px"><canvas id="chartResource"></canvas></div>
                     </div>
                 </div>
 
@@ -266,7 +321,7 @@
             <div id="page-nodes" class="page">
                 <div id="maint-banner" class="hidden glass rounded-xl p-4 border mb-6"></div>
                 <!-- Bakim modu penceresi -->
-                <div id="maint-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:rgba(0,0,0,0.6)">
+                <div id="maint-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:var(--scrim);backdrop-filter:blur(4px)">
                     <div class="glass rounded-xl border w-full max-w-3xl mt-16 p-6" style="background:var(--surface)">
                         <div class="flex items-center justify-between mb-4">
                             <h3 id="maint-modal-title" class="font-semibold text-lg"></h3>
@@ -405,7 +460,7 @@
                 </div>
 
                 <!-- Kural duzenleme penceresi -->
-                <div id="rule-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:rgba(0,0,0,0.6)">
+                <div id="rule-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:var(--scrim);backdrop-filter:blur(4px)">
                     <div class="glass rounded-xl border w-full max-w-2xl mt-12 p-6" style="background:var(--surface)">
                         <div class="flex items-center justify-between mb-4">
                             <h3 id="rule-modal-title" class="font-semibold text-lg"></h3>
@@ -437,6 +492,156 @@
                         <div class="flex justify-end gap-3 mt-6">
                             <button onclick="closeRuleEditor()" class="px-4 py-2 btn-secondary rounded-lg" data-i18n="common.cancel">Vazgeç</button>
                             <button onclick="saveRuleEditor()" class="px-4 py-2 btn-orange rounded-lg font-medium" data-i18n="lb.save">Kaydet</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Import Page -->
+            <div id="page-import" class="page">
+                <div class="glass rounded-xl p-6 border mb-6">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 icon-tile rounded-lg flex items-center justify-center"><i class="fas fa-file-import"></i></div>
+                            <div>
+                                <h3 class="font-semibold" data-i18n="imp.title">Disk İçe Aktar</h3>
+                                <p class="text-xs text-gray-400" data-i18n="imp.sub">Hyper-V, VMware, Veeam ya da başka bir ortamdan gelen disk dosyasından tek adımda Proxmox VM'i oluşturun</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <label for="imp-storage" class="text-gray-400" data-i18n="imp.upload_to">Yükleme yeri</label>
+                            <select id="imp-storage" class="px-3 py-1.5 rounded-lg border"></select>
+                            <button onclick="toggleImpInfo()" data-i18n-title="imp.how_q" title="Nasıl kullanılır?" class="px-3 py-1.5 btn-secondary rounded-lg"><i class="fas fa-circle-info"></i> <span data-i18n="common.info">Bilgi</span></button>
+                        </div>
+                    </div>
+                    <div id="imp-info" class="hidden p-4 rounded-lg mb-4 text-xs border" style="background:var(--surface-2);border-color:var(--line)">
+                        <p class="text-sm text-gray-300 font-medium mb-3"><i class="fas fa-circle-info text-gray-400"></i> <span data-i18n="imp.how_q">Nasıl kullanılır?</span></p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-300">
+                            <div>
+                                <p class="font-semibold text-gray-100 mb-1" data-i18n="imp.i_steps">Adım adım</p>
+                                <p data-i18n-html="imp.i_s1"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_s2"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_s3"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_s4"></p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-gray-100 mb-1" data-i18n="imp.i_tips">Bilmeniz gerekenler</p>
+                                <p data-i18n-html="imp.i_t1"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_t2"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_t3"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_t4"></p>
+                                <p class="mt-1" data-i18n-html="imp.i_t5"></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="imp-drop" role="button" tabindex="0" class="imp-drop rounded-xl border-2 border-dashed p-8 text-center cursor-pointer"
+                         onclick="document.getElementById('imp-input').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
+                        <i class="fas fa-cloud-arrow-up text-3xl text-gray-400"></i>
+                        <p class="mt-3 font-medium" data-i18n="imp.drop">Disk dosyasını buraya sürükleyin ya da tıklayıp seçin</p>
+                        <p class="text-xs text-gray-500 mt-1" data-i18n="imp.drop_hint"></p>
+                        <input id="imp-input" type="file" multiple class="hidden" accept=".vhd,.vhdx,.vmdk,.qcow2,.raw,.img,.ova" onchange="impFilesChosen(this.files); this.value=''">
+                    </div>
+                    <div id="imp-noshare" class="hidden mt-4 text-sm p-3 rounded-lg border" style="border-color:var(--line);background:var(--surface-2)"></div>
+                    <div id="imp-uploads" class="mt-4 space-y-2"></div>
+                </div>
+
+                <div class="glass rounded-xl p-6 border mb-6">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <h3 class="font-semibold" data-i18n="imp.files">Dosyalar</h3>
+                        <p class="text-xs text-gray-500" data-i18n="imp.files_hint"></p>
+                    </div>
+                    <div class="overflow-x-auto rounded-lg border" style="border-color:var(--line)">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-gray-400" style="background:var(--surface-2)">
+                                <tr>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_file">Dosya</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_storage">Depolama</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_type">Tür</th>
+                                    <th class="text-right p-2.5 font-medium" data-i18n="imp.th_size">Boyut</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_date">Tarih</th>
+                                    <th class="p-2.5"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="imp-files"><tr><td colspan="6" class="p-4 text-center text-gray-500"><span data-i18n="common.loading">Yükleniyor...</span></td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="glass rounded-xl p-6 border">
+                    <h3 class="font-semibold mb-3" data-i18n="imp.jobs">İçe aktarma işleri</h3>
+                    <div class="overflow-x-auto rounded-lg border" style="border-color:var(--line)">
+                        <table class="w-full text-sm">
+                            <thead class="text-xs text-gray-400" style="background:var(--surface-2)">
+                                <tr>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_vm">VM</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_file">Dosya</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_target">Hedef</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_status">Durum</th>
+                                    <th class="text-left p-2.5 font-medium" data-i18n="imp.th_date">Tarih</th>
+                                </tr>
+                            </thead>
+                            <tbody id="imp-jobs"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Ice aktarma sihirbazi -->
+                <div id="imp-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style="background:var(--scrim);backdrop-filter:blur(4px)">
+                    <div class="glass rounded-xl border w-full max-w-3xl mt-8 p-6" style="background:var(--surface)" role="dialog" aria-modal="true" aria-labelledby="imp-modal-title">
+                        <div class="flex items-center justify-between mb-1">
+                            <h3 id="imp-modal-title" class="font-semibold text-lg" data-i18n="imp.w_title">VM olarak içe aktar</h3>
+                            <button onclick="closeImportWizard()" class="text-gray-400 hover:text-white" data-i18n-title="common.cancel" title="Vazgeç"><i class="fas fa-times"></i></button>
+                        </div>
+                        <p id="imp-modal-file" class="text-xs text-gray-400 mb-4 font-mono break-all"></p>
+                        <div id="imp-detect" class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4 text-sm"></div>
+                        <div id="imp-warn" class="space-y-1 mb-4 text-xs"></div>
+                        <div id="imp-form" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div><label for="imp-f-name" class="block text-gray-400 mb-1" data-i18n="imp.f.name">VM adı</label>
+                                <input id="imp-f-name" maxlength="63" class="w-full px-3 py-2 rounded-lg border"></div>
+                            <div><label for="imp-f-vmid" class="block text-gray-400 mb-1" data-i18n="imp.f.vmid">VM ID</label>
+                                <input id="imp-f-vmid" type="number" min="100" class="w-full px-3 py-2 rounded-lg border"></div>
+                            <div><label for="imp-f-node" class="block text-gray-400 mb-1" data-i18n="imp.f.node">Düğüm</label>
+                                <select id="imp-f-node" onchange="impNodeChanged()" class="w-full px-3 py-2 rounded-lg border"></select>
+                                <p class="text-xs text-gray-500 mt-1" data-i18n="imp.rec_hint"></p></div>
+                            <div><label for="imp-f-target" class="block text-gray-400 mb-1" data-i18n="imp.f.target_storage">Hedef depolama</label>
+                                <select id="imp-f-target" class="w-full px-3 py-2 rounded-lg border"></select></div>
+                            <div><label for="imp-f-cores" class="block text-gray-400 mb-1" data-i18n="imp.f.cores">CPU çekirdeği</label>
+                                <input id="imp-f-cores" type="number" min="1" class="w-full px-3 py-2 rounded-lg border"></div>
+                            <div><label for="imp-f-mem" class="block text-gray-400 mb-1" data-i18n="imp.f.memory_mb">RAM (GB)</label>
+                                <input id="imp-f-mem" type="number" min="0.25" step="0.25" class="w-full px-3 py-2 rounded-lg border"></div>
+                            <div><label for="imp-f-ostype" class="block text-gray-400 mb-1" data-i18n="imp.f.ostype">İşletim sistemi</label>
+                                <select id="imp-f-ostype" onchange="impOsChanged()" class="w-full px-3 py-2 rounded-lg border"></select></div>
+                            <div><label for="imp-f-bios" class="block text-gray-400 mb-1" data-i18n="imp.f.bios">Önyükleme</label>
+                                <select id="imp-f-bios" onchange="impOsChanged()" class="w-full px-3 py-2 rounded-lg border"></select>
+                                <label id="imp-tpm-row" class="flex items-center gap-2 mt-2"><input type="checkbox" id="imp-f-tpm"> <span data-i18n="imp.f.tpm">TPM 2.0 ekle</span></label></div>
+                            <div><label for="imp-f-bus" class="block text-gray-400 mb-1" data-i18n="imp.f.bus">Disk bağlantısı</label>
+                                <select id="imp-f-bus" class="w-full px-3 py-2 rounded-lg border"></select></div>
+                            <div><label for="imp-f-nic" class="block text-gray-400 mb-1" data-i18n="imp.f.nic_model">Ağ kartı</label>
+                                <select id="imp-f-nic" class="w-full px-3 py-2 rounded-lg border"></select></div>
+                            <div><label for="imp-f-bridge" class="block text-gray-400 mb-1" data-i18n="imp.f.bridge">Ağ köprüsü</label>
+                                <select id="imp-f-bridge" class="w-full px-3 py-2 rounded-lg border"></select></div>
+                            <div><label for="imp-f-vlan" class="block text-gray-400 mb-1" data-i18n="imp.f.vlan">VLAN (isteğe bağlı)</label>
+                                <input id="imp-f-vlan" type="number" min="1" max="4094" class="w-full px-3 py-2 rounded-lg border"></div>
+                            <div id="imp-disk-row"><label for="imp-f-disk" class="block text-gray-400 mb-1" data-i18n="imp.f.disk_gb">Disk boyutu (GB)</label>
+                                <input id="imp-f-disk" type="number" min="1" step="1" class="w-full px-3 py-2 rounded-lg border">
+                                <p class="text-xs text-gray-500 mt-1" data-i18n="imp.disk_hint">Sadece büyütülebilir; VM içinde bölümü ayrıca genişletmeniz gerekebilir.</p></div>
+                            <div class="md:col-span-2"><label for="imp-f-iso" class="block text-gray-400 mb-1" data-i18n="imp.f.virtio_iso">VirtIO sürücü ISO'su</label>
+                                <select id="imp-f-iso" class="w-full px-3 py-2 rounded-lg border"></select></div>
+                            <div class="md:col-span-2 flex flex-wrap items-center gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2"><input type="checkbox" id="imp-f-ha" onchange="impHaChanged()"> <span data-i18n="imp.f.ha">HA'ya ekle</span></label>
+                                <select id="imp-f-hagroup" aria-label="HA" data-i18n-title="imp.f.ha_group" title="HA grubu" class="px-3 py-1.5 rounded-lg border"></select>
+                                <span class="text-xs text-gray-500" data-i18n="imp.ha_hint">Node çökerse VM başka node'da otomatik açılır</span>
+                            </div>
+                            <div class="md:col-span-2 flex flex-wrap gap-x-6 gap-y-2">
+                                <label class="flex items-center gap-2"><input type="checkbox" id="imp-f-start"> <span data-i18n="imp.f.start">İçe aktarınca başlat</span></label>
+                                <label class="flex items-center gap-2"><input type="checkbox" id="imp-f-del"> <span data-i18n="imp.f.delete_source">Bitince kaynak dosyayı sil</span></label>
+                            </div>
+                            <p id="imp-win-hint" class="hidden md:col-span-2 text-xs text-gray-400 p-3 rounded-lg border" style="border-color:var(--line);background:var(--surface-2)" data-i18n-html="imp.win_hint"></p>
+                        </div>
+                        <p id="imp-error" class="hidden mt-4 text-sm" style="color:var(--bad)"></p>
+                        <div class="flex justify-end gap-3 mt-6">
+                            <button onclick="closeImportWizard()" class="px-4 py-2 btn-secondary rounded-lg" data-i18n="common.cancel">Vazgeç</button>
+                            <button id="imp-submit" onclick="submitImport()" class="px-4 py-2 btn-orange rounded-lg font-medium"><i class="fas fa-file-import"></i> <span data-i18n="imp.submit">İçe aktar</span></button>
                         </div>
                     </div>
                 </div>
@@ -703,6 +908,7 @@
             </div>
         </div>
     </main>
+</div></div>
 
     <script>
 
@@ -710,7 +916,7 @@
         // UI texts. To add a language: copy the 'en' block, translate it and add a button in the header.
         const I18N = {
             tr: {
-                "nav.dashboard": "Dashboard",
+                "nav.dashboard": "Genel Bakış",
                 "nav.nodes": "Node'lar",
                 "nav.vms": "Sanal Makineler",
                 "nav.containers": "Container'lar",
@@ -975,10 +1181,182 @@
                 "r.err.vm": "\"{name}\": seçilen bir VM artık yok",
                 "r.err.node": "\"{name}\": geçerli bir node seçin",
                 "r.err.too_many": "En fazla 100 kural tanımlanabilir",
-                "h.r_rule": "Kural: <b>{name}</b> ({type})"
+                "h.r_rule": "Kural: <b>{name}</b> ({type})",
+                "nav.import": "İçe Aktar",
+                "imp.title": "Disk İçe Aktar",
+                "imp.sub": "Hyper-V, VMware, Veeam ya da başka bir ortamdan gelen disk dosyasından tek adımda Proxmox VM'i oluşturun",
+                "imp.upload_to": "Yükleme yeri",
+                "imp.drop": "Disk dosyasını buraya sürükleyin ya da tıklayıp seçin",
+                "imp.drop_hint": ".vhd · .vhdx · .vmdk · .qcow2 · .raw · .img · .ova — yarıda kalan yükleme, aynı dosyayı tekrar bırakınca kaldığı yerden devam eder",
+                "imp.free": "{n} boş",
+                "imp.local_only": "yalnızca {node} düğümüne aktarılabilir",
+                "imp.shared": "paylaşımlı",
+                "imp.no_storage": "İçe aktarmaya açık bir depolama yok. Proxmox'ta <b>Datacenter → Storage</b> altında bir depolamayı düzenleyip <b>Content</b> listesine <b>Import</b> ekleyin. Paylaşımlı (NFS/SMB) bir depolama seçerseniz VM'i her düğüme aktarabilirsiniz.",
+                "imp.files": "Dosyalar",
+                "imp.files_hint": "Depolamanın import klasörüne kendiniz kopyaladığınız dosyalar da burada görünür",
+                "imp.th_file": "Dosya",
+                "imp.th_storage": "Depolama",
+                "imp.th_type": "Tür",
+                "imp.th_size": "Boyut",
+                "imp.th_date": "Tarih",
+                "imp.th_vm": "VM",
+                "imp.th_target": "Hedef",
+                "imp.th_status": "Durum",
+                "imp.no_files": "Henüz dosya yok",
+                "imp.partial": "yarım kaldı",
+                "imp.partial_hint": "Devam etmek için aynı dosyayı tekrar bırakın",
+                "imp.import_btn": "VM olarak içe aktar",
+                "imp.delete": "Sil",
+                "imp.del_q": "{name} kalıcı olarak silinsin mi?",
+                "imp.deleted": "Dosya silindi",
+                "imp.up.queued": "Sırada",
+                "imp.up.uploading": "Yükleniyor",
+                "imp.up.paused": "Duraklatıldı",
+                "imp.up.done": "Yüklendi",
+                "imp.up.error": "Hata",
+                "imp.pause": "Duraklat",
+                "imp.resume": "Devam et",
+                "imp.cancel": "İptal",
+                "imp.cancel_q": "Yükleme iptal edilsin ve yarım dosya silinsin mi?",
+                "imp.eta": "{speed}/sn · {eta} kaldı",
+                "imp.uploaded": "{name} yüklendi",
+                "imp.jobs": "İçe aktarma işleri",
+                "imp.no_jobs": "Henüz içe aktarma yapılmadı",
+                "imp.st_running": "Aktarılıyor {p}",
+                "imp.st_disk": "disk {i}/{n}",
+                "imp.st_done": "Tamamlandı",
+                "imp.st_failed": "Başarısız",
+                "imp.st_unknown": "Bilinmiyor — Proxmox görev günlüğüne bakın",
+                "imp.open_pve": "Proxmox'ta aç",
+                "imp.src_deleted": "kaynak dosya silindi",
+                "imp.started": "İçe aktarma başladı",
+                "imp.w_title": "VM olarak içe aktar",
+                "imp.detecting": "Dosya inceleniyor...",
+                "imp.d_format": "Format",
+                "imp.d_size": "Dosya boyutu",
+                "imp.d_vsize": "Disk boyutu",
+                "imp.d_disks": "Disk sayısı",
+                "imp.d_fw": "Önyükleme",
+                "imp.d_os": "İşletim sistemi",
+                "imp.fw.uefi": "UEFI",
+                "imp.fw.bios": "BIOS (Legacy)",
+                "imp.fw.unknown": "Algılanamadı",
+                "imp.os_g.windows": "Windows",
+                "imp.os_g.linux": "Linux",
+                "imp.os_g.unknown": "Algılanamadı",
+                "imp.w.no_partition_table": "Diskte bölüm tablosu bulunamadı; ayarları kontrol edin.",
+                "imp.w.generic": "Uyarı: {w}",
+                "imp.win_hint": "Windows'ta VirtIO sürücüleri yoksa disk <b>SATA</b>, ağ kartı <b>E1000</b> kalsın. VM açıldıktan sonra VirtIO ISO'sundan sürücüleri kurup daha hızlı olan VirtIO'ya geçebilirsiniz.",
+                "imp.rec_hint": "Önerilen düğüm, ClusterBalance'ın şu an en boş gördüğü düğümdür.",
+                "imp.recommended": "önerilen",
+                "imp.node_label": "{name} — RAM {mem} · CPU {cpu}",
+                "imp.f.name": "VM adı",
+                "imp.f.vmid": "VM ID",
+                "imp.f.node": "Düğüm",
+                "imp.f.target_storage": "Hedef depolama",
+                "imp.f.cores": "CPU çekirdeği",
+                "imp.f.memory_mb": "RAM (GB)",
+                "imp.f.ostype": "İşletim sistemi",
+                "imp.f.bios": "Önyükleme",
+                "imp.f.tpm": "TPM 2.0 ekle (Windows 11 için gerekli)",
+                "imp.f.bus": "Disk bağlantısı",
+                "imp.f.nic_model": "Ağ kartı",
+                "imp.f.bridge": "Ağ köprüsü",
+                "imp.f.vlan": "VLAN (isteğe bağlı)",
+                "imp.f.virtio_iso": "VirtIO sürücü ISO'su",
+                "imp.f.start": "İçe aktarınca başlat",
+                "imp.f.delete_source": "Bitince kaynak dosyayı sil",
+                "imp.none": "Yok",
+                "imp.os.win11": "Windows 11 / Server 2022+",
+                "imp.os.win10": "Windows 10 / Server 2016–2019",
+                "imp.os.win8": "Windows 8 / Server 2012",
+                "imp.os.win7": "Windows 7 / Server 2008 R2",
+                "imp.os.w2k8": "Windows Vista / Server 2008",
+                "imp.os.l26": "Linux (2.6+ çekirdek)",
+                "imp.os.other": "Diğer",
+                "imp.bios.seabios": "BIOS (SeaBIOS)",
+                "imp.bios.ovmf": "UEFI (OVMF)",
+                "imp.bus.sata": "SATA (en uyumlu)",
+                "imp.bus.scsi": "SCSI (VirtIO SCSI)",
+                "imp.bus.virtio": "VirtIO Block",
+                "imp.bus.ide": "IDE (çok eski sistemler)",
+                "imp.nic.e1000": "Intel E1000 (en uyumlu)",
+                "imp.nic.virtio": "VirtIO (en hızlı)",
+                "imp.nic.vmxnet3": "VMware vmxnet3",
+                "imp.nic.rtl8139": "Realtek RTL8139",
+                "imp.submit": "İçe aktar",
+                "imp.err.storage": "Depolama bulunamadı ya da içe aktarmaya açık değil",
+                "imp.err.filename": "Dosya adı geçersiz (virgül, eşittir, / gibi karakterler kullanılamaz)",
+                "imp.err.extension": "Desteklenmeyen dosya türü",
+                "imp.err.size": "Dosya boyutu geçersiz ya da sınırı aşıyor",
+                "imp.err.exists": "Bu adla bir dosya zaten var; önce onu silin ya da dosyanın adını değiştirin",
+                "imp.err.space": "Depolamada yeterli boş yer yok ({free} boş)",
+                "imp.err.chunk": "Parça boyutu geçersiz",
+                "imp.err.no_upload": "Yükleme bulunamadı; dosyayı yeniden bırakın",
+                "imp.err.busy": "Bu dosya zaten yükleniyor",
+                "imp.err.offset": "Yükleme konumu uyuşmadı",
+                "imp.err.incomplete": "Parça eksik geldi",
+                "imp.err.missing": "Dosya bulunamadı",
+                "imp.err.in_use": "Bu dosya şu an içe aktarılıyor",
+                "imp.err.unreadable": "Dosya okunamadı; disk imajı olmayabilir ya da bozuk",
+                "imp.err.format": "Desteklenmeyen disk formatı",
+                "imp.err.backing": "Bu imaj başka bir dosyaya bağlı (backing file); güvenlik için reddedildi",
+                "imp.err.data_file": "Bu imaj harici bir veri dosyası kullanıyor; güvenlik için reddedildi",
+                "imp.err.extent": "VMDK, klasör dışındaki bir dosyaya işaret ediyor; güvenlik için reddedildi",
+                "imp.err.ova": "OVA dosyası okunamadı (Proxmox meta verisi alınamadı)",
+                "imp.err.ova_work": "OVA disklerinin açılması için dosya tabanlı bir hedef depolama seçin (dir/NFS/SMB) ya da kaynak depolamada Images içeriğini açın",
+                "imp.err.node": "Düğüm geçersiz ya da çevrimdışı",
+                "imp.err.node_local": "Bu dosya paylaşımlı olmayan bir depolamada; yalnızca {node} düğümüne aktarılabilir",
+                "imp.err.target_storage": "Hedef depolama bu düğümde kullanılamıyor",
+                "imp.err.vmid_taken": "VM ID {vmid} zaten kullanılıyor",
+                "imp.err.vm_name": "VM adı geçersiz (harf, rakam, nokta ve tire; en çok 63 karakter)",
+                "imp.err.field": "Geçersiz değer: {field}",
+                "imp.err.generic": "Hata: {e}",
+                "nav.grp_cluster": "Cluster",
+                "nav.grp_auto": "Otomasyon",
+                "nav.grp_tools": "Araçlar",
+                "hdr.menu": "Menü",
+                "hdr.theme_dark": "Koyu temaya geç",
+                "hdr.theme_light": "Açık temaya geç",
+                "dash.rings": "Denge, RAM ve CPU halkaları",
+                "dash.r_bal": "Denge",
+                "dash.h_ok": "Cluster dengeli",
+                "dash.h_bad": "Dengesizlik var",
+                "dash.h_ok_sub": "Taşıma gerekmiyor. Node'lar arasındaki en büyük RAM farkı {diff} puan.",
+                "dash.h_bad_sub": "Node'lar arasındaki en büyük RAM farkı {diff} puan; dengeleyici taşıma penceresinde VM'leri taşıyacak.",
+                "imp.how_q": "Nasıl kullanılır?",
+                "imp.i_steps": "Adım adım",
+                "imp.i_s1": "<b>1. Dosyayı getirin:</b> disk dosyasını yukarıdaki alana sürükleyin ya da tıklayıp seçin. Büyük dosyayı paylaşıma kendiniz de kopyalayabilirsiniz; aşağıdaki listede kendiliğinden görünür.",
+                "imp.i_s2": "<b>2. VM olarak içe aktar:</b> yükleme bitince ayar penceresi kendiliğinden açılır; listedeki dosyalar için <b>VM olarak içe aktar</b> düğmesine basın.",
+                "imp.i_s3": "<b>3. Ayarları kontrol edin:</b> panel formatı, UEFI/BIOS'u ve Windows/Linux'u diskten okur; ad, VM ID, en boş node, CPU/RAM ve ağ önerilir. Hepsi değiştirilebilir.",
+                "imp.i_s4": "<b>4. İçe aktarın:</b> diski Proxmox dönüştürür. İlerleme <b>İçe aktarma işleri</b> tablosunda görünür; bitince <b>Proxmox'ta aç</b> ile VM'e gidin.",
+                "imp.i_tips": "Bilmeniz gerekenler",
+                "imp.i_t1": "<b>Büyük diskler:</b> 100 GB üstü dosyaları tarayıcıdan yüklemek yerine depolamanın <b>import</b> klasörüne (depolama yolu + <code>/import</code>) doğrudan kopyalamak daha hızlıdır. Bağlantı koparsa aynı dosyayı tekrar bırakın, yükleme kaldığı yerden devam eder.",
+                "imp.i_t2": "<b>Windows:</b> VirtIO sürücüsü yoksa disk <b>SATA</b>, ağ kartı <b>E1000</b> kalsın. VM açılınca VirtIO ISO'sundan sürücüleri kurup daha hızlı VirtIO'ya geçebilirsiniz. Hyper-V 2. nesil diskler UEFI'dir; önyükleme UEFI kalmalı.",
+                "imp.i_t3": "<b>Hangi node'a?</b> Paylaşımlı (NFS/SMB) bir depolamadaki dosya her node'a aktarılabilir; yerel depolamadaki dosya yalnızca panelin çalıştığı node'a aktarılabilir.",
+                "imp.i_t4": "<b>Kaynak dosya:</b> VM'i kontrol etmeden silmek istemiyorsanız <b>Bitince kaynak dosyayı sil</b> kutusunu boş bırakın; dosyayı sonra listeden silebilirsiniz. İçe aktarılırken silinemez.",
+                "imp.i_t5": "<b>Güvenlik:</b> sunucudaki başka dosyalara bağlı imajlar (backing file, harici veri dosyası) reddedilir; Proxmox da dönüştürmeden önce imajı ayrıca denetler. Her yükleme, içe aktarma ve silme denetim kaydına yazılır.",
+                "hc.bk_nojob": "hiçbir yedekleme işinde yok",
+                "hc.bk_pending": "ilk yedeği bekleniyor · {h} sa önce açıldı",
+                "hc.bk_skipped": "{n} geçici VM (temp / no-backup etiketi) kontrol dışı",
+                "lg.bk_nojob": "VM hiçbir yedekleme işinde yok (hiç yedeklenmeyecek)",
+                "lg.bk_new": "Yeni VM: ilk 26 saat alarm yok, ilk gece yedeği beklenir",
+                "lg.bk_skip": "\"temp\" ya da \"no-backup\" etiketli VM'ler kontrol edilmez",
+                "hc.ha_unprot": "{n} çalışan VM HA'da değil (node çökerse başka node'da açılmaz):",
+                "lg.ha_unprot": "Bilgi: çalışan ama HA'da olmayan VM'ler (node çökerse başka node'da açılmaz); \"no-ha\" etiketliler listelenmez",
+                "imp.f.ha": "HA'ya ekle",
+                "imp.f.ha_group": "HA grubu",
+                "imp.ha_none": "Grup yok",
+                "imp.ha_hint": "Node çökerse VM başka node'da otomatik açılır",
+                "imp.ha_added": "HA'ya eklendi ({g})",
+                "imp.ha_failed": "HA'ya eklenemedi: {e}",
+                "imp.f.disk_gb": "Disk boyutu (GB)",
+                "imp.disk_hint": "Sadece büyütülebilir; VM içinde bölümü ayrıca genişletmeniz gerekebilir.",
+                "imp.resized": "disk {n} GB'a büyütüldü",
+                "imp.resize_failed": "disk büyütülemedi: {e}"
             },
             en: {
-                "nav.dashboard": "Dashboard",
+                "nav.dashboard": "Overview",
                 "nav.nodes": "Nodes",
                 "nav.vms": "Virtual Machines",
                 "nav.containers": "Containers",
@@ -1243,7 +1621,179 @@
                 "r.err.vm": "\"{name}\": a selected VM no longer exists",
                 "r.err.node": "\"{name}\": choose a valid node",
                 "r.err.too_many": "At most 100 rules can be defined",
-                "h.r_rule": "Rule: <b>{name}</b> ({type})"
+                "h.r_rule": "Rule: <b>{name}</b> ({type})",
+                "nav.import": "Import",
+                "imp.title": "Import Disk",
+                "imp.sub": "Create a Proxmox VM from a disk exported from Hyper-V, VMware, Veeam or anywhere else, in one step",
+                "imp.upload_to": "Upload to",
+                "imp.drop": "Drop a disk file here or click to choose one",
+                "imp.drop_hint": ".vhd · .vhdx · .vmdk · .qcow2 · .raw · .img · .ova — an interrupted upload resumes where it stopped when you drop the same file again",
+                "imp.free": "{n} free",
+                "imp.local_only": "can only be imported on {node}",
+                "imp.shared": "shared",
+                "imp.no_storage": "No storage accepts imports yet. In Proxmox, edit a storage under <b>Datacenter → Storage</b> and add <b>Import</b> to its <b>Content</b>. With a shared (NFS/SMB) storage you can import the VM onto any node.",
+                "imp.files": "Files",
+                "imp.files_hint": "Files you copy into a storage's import folder yourself show up here too",
+                "imp.th_file": "File",
+                "imp.th_storage": "Storage",
+                "imp.th_type": "Type",
+                "imp.th_size": "Size",
+                "imp.th_date": "Date",
+                "imp.th_vm": "VM",
+                "imp.th_target": "Target",
+                "imp.th_status": "Status",
+                "imp.no_files": "No files yet",
+                "imp.partial": "incomplete",
+                "imp.partial_hint": "Drop the same file again to resume",
+                "imp.import_btn": "Import as VM",
+                "imp.delete": "Delete",
+                "imp.del_q": "Permanently delete {name}?",
+                "imp.deleted": "File deleted",
+                "imp.up.queued": "Queued",
+                "imp.up.uploading": "Uploading",
+                "imp.up.paused": "Paused",
+                "imp.up.done": "Uploaded",
+                "imp.up.error": "Error",
+                "imp.pause": "Pause",
+                "imp.resume": "Resume",
+                "imp.cancel": "Cancel",
+                "imp.cancel_q": "Cancel the upload and delete the partial file?",
+                "imp.eta": "{speed}/s · {eta} left",
+                "imp.uploaded": "{name} uploaded",
+                "imp.jobs": "Import jobs",
+                "imp.no_jobs": "No imports yet",
+                "imp.st_running": "Importing {p}",
+                "imp.st_disk": "disk {i}/{n}",
+                "imp.st_done": "Done",
+                "imp.st_failed": "Failed",
+                "imp.st_unknown": "Unknown — check the Proxmox task log",
+                "imp.open_pve": "Open in Proxmox",
+                "imp.src_deleted": "source file deleted",
+                "imp.started": "Import started",
+                "imp.w_title": "Import as VM",
+                "imp.detecting": "Inspecting the file...",
+                "imp.d_format": "Format",
+                "imp.d_size": "File size",
+                "imp.d_vsize": "Disk size",
+                "imp.d_disks": "Disks",
+                "imp.d_fw": "Boot firmware",
+                "imp.d_os": "Operating system",
+                "imp.fw.uefi": "UEFI",
+                "imp.fw.bios": "BIOS (legacy)",
+                "imp.fw.unknown": "Not detected",
+                "imp.os_g.windows": "Windows",
+                "imp.os_g.linux": "Linux",
+                "imp.os_g.unknown": "Not detected",
+                "imp.w.no_partition_table": "No partition table found on the disk; double-check the settings.",
+                "imp.w.generic": "Warning: {w}",
+                "imp.win_hint": "If Windows has no VirtIO drivers, keep the disk on <b>SATA</b> and the network card on <b>E1000</b>. Once the VM is up, install the drivers from the VirtIO ISO and switch to the faster VirtIO devices.",
+                "imp.rec_hint": "The recommended node is the one ClusterBalance currently sees as least loaded.",
+                "imp.recommended": "recommended",
+                "imp.node_label": "{name} — RAM {mem} · CPU {cpu}",
+                "imp.f.name": "VM name",
+                "imp.f.vmid": "VM ID",
+                "imp.f.node": "Node",
+                "imp.f.target_storage": "Target storage",
+                "imp.f.cores": "CPU cores",
+                "imp.f.memory_mb": "RAM (GB)",
+                "imp.f.ostype": "OS type",
+                "imp.f.bios": "Firmware",
+                "imp.f.tpm": "Add TPM 2.0 (required by Windows 11)",
+                "imp.f.bus": "Disk bus",
+                "imp.f.nic_model": "Network card",
+                "imp.f.bridge": "Bridge",
+                "imp.f.vlan": "VLAN (optional)",
+                "imp.f.virtio_iso": "VirtIO driver ISO",
+                "imp.f.start": "Start after import",
+                "imp.f.delete_source": "Delete the source file when done",
+                "imp.none": "None",
+                "imp.os.win11": "Windows 11 / Server 2022+",
+                "imp.os.win10": "Windows 10 / Server 2016–2019",
+                "imp.os.win8": "Windows 8 / Server 2012",
+                "imp.os.win7": "Windows 7 / Server 2008 R2",
+                "imp.os.w2k8": "Windows Vista / Server 2008",
+                "imp.os.l26": "Linux (2.6+ kernel)",
+                "imp.os.other": "Other",
+                "imp.bios.seabios": "BIOS (SeaBIOS)",
+                "imp.bios.ovmf": "UEFI (OVMF)",
+                "imp.bus.sata": "SATA (most compatible)",
+                "imp.bus.scsi": "SCSI (VirtIO SCSI)",
+                "imp.bus.virtio": "VirtIO Block",
+                "imp.bus.ide": "IDE (very old systems)",
+                "imp.nic.e1000": "Intel E1000 (most compatible)",
+                "imp.nic.virtio": "VirtIO (fastest)",
+                "imp.nic.vmxnet3": "VMware vmxnet3",
+                "imp.nic.rtl8139": "Realtek RTL8139",
+                "imp.submit": "Import",
+                "imp.err.storage": "Storage not found or not enabled for imports",
+                "imp.err.filename": "Invalid file name (commas, equals signs, slashes are not allowed)",
+                "imp.err.extension": "Unsupported file type",
+                "imp.err.size": "Invalid file size or over the limit",
+                "imp.err.exists": "A file with this name already exists; delete it first or rename your file",
+                "imp.err.space": "Not enough free space on the storage ({free} free)",
+                "imp.err.chunk": "Invalid chunk size",
+                "imp.err.no_upload": "Upload not found; drop the file again",
+                "imp.err.busy": "This file is already being uploaded",
+                "imp.err.offset": "Upload position mismatch",
+                "imp.err.incomplete": "Chunk arrived incomplete",
+                "imp.err.missing": "File not found",
+                "imp.err.in_use": "This file is being imported right now",
+                "imp.err.unreadable": "Could not read the file; it may not be a disk image or it is damaged",
+                "imp.err.format": "Unsupported disk format",
+                "imp.err.backing": "This image depends on another file (backing file); rejected for safety",
+                "imp.err.data_file": "This image uses an external data file; rejected for safety",
+                "imp.err.extent": "The VMDK points to a file outside its folder; rejected for safety",
+                "imp.err.ova": "Could not read the OVA (Proxmox returned no metadata)",
+                "imp.err.ova_work": "To unpack the OVA disks, pick a file-based target storage (dir/NFS/SMB) or enable the Images content on the source storage",
+                "imp.err.node": "Invalid or offline node",
+                "imp.err.node_local": "This file is on a non-shared storage; it can only be imported on {node}",
+                "imp.err.target_storage": "The target storage is not available on this node",
+                "imp.err.vmid_taken": "VM ID {vmid} is already in use",
+                "imp.err.vm_name": "Invalid VM name (letters, digits, dots and dashes; at most 63 characters)",
+                "imp.err.field": "Invalid value: {field}",
+                "imp.err.generic": "Error: {e}",
+                "nav.grp_cluster": "Cluster",
+                "nav.grp_auto": "Automation",
+                "nav.grp_tools": "Tools",
+                "hdr.menu": "Menu",
+                "hdr.theme_dark": "Switch to dark theme",
+                "hdr.theme_light": "Switch to light theme",
+                "dash.rings": "Balance, RAM and CPU rings",
+                "dash.r_bal": "Balance",
+                "dash.h_ok": "Cluster is balanced",
+                "dash.h_bad": "Cluster is unbalanced",
+                "dash.h_ok_sub": "No migration needed. The largest RAM gap between nodes is {diff} points.",
+                "dash.h_bad_sub": "The largest RAM gap between nodes is {diff} points; the balancer will move VMs in the migration window.",
+                "imp.how_q": "How does it work?",
+                "imp.i_steps": "Step by step",
+                "imp.i_s1": "<b>1. Bring the file:</b> drag the disk file onto the area above or click to choose it. You can also copy a big file onto the share yourself; it shows up in the list below.",
+                "imp.i_s2": "<b>2. Import as VM:</b> when the upload finishes the settings dialog opens by itself; for files in the list, press <b>Import as VM</b>.",
+                "imp.i_s3": "<b>3. Check the settings:</b> the dashboard reads the format, UEFI/BIOS and Windows/Linux from the disk and suggests name, VM ID, the least loaded node, CPU/RAM and network. Everything can be changed.",
+                "imp.i_s4": "<b>4. Import:</b> Proxmox converts the disk. Progress shows in the <b>Import jobs</b> table; when it is done, go to the VM with <b>Open in Proxmox</b>.",
+                "imp.i_tips": "Good to know",
+                "imp.i_t1": "<b>Big disks:</b> for files over 100 GB, copying them straight into the storage's <b>import</b> folder (storage path + <code>/import</code>) is faster than uploading in the browser. If the connection drops, drop the same file again and the upload resumes.",
+                "imp.i_t2": "<b>Windows:</b> without VirtIO drivers keep the disk on <b>SATA</b> and the NIC on <b>E1000</b>. Once the VM runs, install the drivers from the VirtIO ISO and switch to the faster VirtIO devices. Hyper-V generation 2 disks are UEFI; keep the firmware on UEFI.",
+                "imp.i_t3": "<b>Which node?</b> A file on a shared (NFS/SMB) storage can be imported on any node; a file on a local storage only on the dashboard's node.",
+                "imp.i_t4": "<b>Source file:</b> if you want to check the VM before deleting anything, leave <b>Delete the source file when done</b> unticked and delete the file from the list later. It cannot be deleted while it is being imported.",
+                "imp.i_t5": "<b>Safety:</b> images that point at other files on the host (backing files, external data files) are rejected, and Proxmox checks the image again before converting it. Every upload, import and delete is written to the audit log.",
+                "hc.bk_nojob": "not in any backup job",
+                "hc.bk_pending": "waiting for its first backup · created {h} h ago",
+                "hc.bk_skipped": "{n} temporary VM(s) (temp / no-backup tag) not checked",
+                "lg.bk_nojob": "The VM is in no backup job (it will never be backed up)",
+                "lg.bk_new": "New VM: no alarm for 26 hours while its first nightly backup is pending",
+                "lg.bk_skip": "VMs tagged \"temp\" or \"no-backup\" are not checked",
+                "hc.ha_unprot": "{n} running VM(s) not in HA (they won't restart elsewhere if their node fails):",
+                "lg.ha_unprot": "Info: running VMs that are not in HA (they won't restart elsewhere if their node fails); VMs tagged \"no-ha\" are not listed",
+                "imp.f.ha": "Add to HA",
+                "imp.f.ha_group": "HA group",
+                "imp.ha_none": "No group",
+                "imp.ha_hint": "If its node fails, the VM restarts on another node",
+                "imp.ha_added": "added to HA ({g})",
+                "imp.ha_failed": "could not be added to HA: {e}",
+                "imp.f.disk_gb": "Disk size (GB)",
+                "imp.disk_hint": "Can only grow; you may need to extend the partition inside the VM.",
+                "imp.resized": "disk grown to {n} GB",
+                "imp.resize_failed": "disk could not be grown: {e}"
             },
         };
         let LANG = 'tr';
@@ -1310,7 +1860,8 @@
             document.getElementById('pageTitle').textContent = t('nav.' + currentPage);
             for (const c of [chartCpuMonitor, chartMemMonitor, chartDiskMonitor]) if (c) { c.data.labels = [t('mon.used'), t('mon.free')]; c.update(); }
             if (chartHistory) { chartHistory.data.datasets[0].label = t('h.ds_score'); chartHistory.data.datasets[1].label = t('h.ds_thr'); }
-            renderHistory(); renderMaintenance(); renderRules(); refreshAll();
+            updateThemeBtn();
+            renderHistory(); renderMaintenance(); renderRules(); renderImport(); renderImpJobs(); refreshAll();
         }
 
         let chartDist, chartResource, chartCpuMonitor, chartMemMonitor, chartDiskMonitor;
@@ -1318,7 +1869,7 @@
         let currentConfig = {};
         const chartColors = ['#60a5fa', '#a78bfa', '#94a3b8', '#3b82f6', '#c4b5fd', '#64748b'];
         Chart.defaults.elements.arc.borderWidth = 0;
-        Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+        Chart.defaults.font.family = "'Figtree', system-ui, sans-serif";
 
         function showPage(page) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1326,12 +1877,62 @@
             document.getElementById('page-' + page).classList.add('active');
             document.querySelector(`[data-page="${page}"]`).classList.add('active');
             currentPage = page;
+            document.getElementById('sidebar').classList.remove('open');
             document.getElementById('pageTitle').textContent = t('nav.' + page);
             if (page === 'monitor') { initMonitorCharts(); loadDistribution(); }
             if (page === 'settings') { loadConfig(); loadRepoStatus(); loadBalanceLog(); loadHistory(); }
             if (page === 'nodes') { loadMaintenance(); }
             if (page === 'rules') { loadRules(); }
+            if (page === 'import') { loadImport(); }
         }
+
+        function setRing(id, v) {
+            const c = document.getElementById(id);
+            if (!c) return;
+            const len = 2 * Math.PI * c.r.baseVal.value;
+            c.style.strokeDasharray = `${len * Math.min(100, Math.max(0, v || 0)) / 100} ${len}`;
+        }
+
+        // ---- theme (light / dark like macOS; follows the system unless the user picked one)
+        function cssv(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+        function currentTheme() {
+            return document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        }
+        function updateThemeBtn() {
+            const b = document.getElementById('themeBtn');
+            if (!b) return;
+            const dark = currentTheme() === 'dark';
+            b.innerHTML = `<i class="fas ${dark ? 'fa-sun' : 'fa-moon'}"></i>`;
+            b.title = t(dark ? 'hdr.theme_light' : 'hdr.theme_dark');
+            b.setAttribute('aria-label', b.title);
+        }
+        function toggleTheme() {
+            const next = currentTheme() === 'dark' ? 'light' : 'dark';
+            document.documentElement.dataset.theme = next;
+            try { localStorage.setItem('cbTheme', next); } catch (e) {}
+            updateThemeBtn();
+            themeCharts();
+        }
+        function themeCharts() {
+            const muted = cssv('--muted'), grid = cssv('--grid'), track = cssv('--track');
+            const cpu = cssv('--cpu'), ram = cssv('--ram'), disk = cssv('--disk');
+            Chart.defaults.color = muted;
+            const palette = [cpu, ram, cssv('--bal'), cssv('--warn'), '#bf5af2', disk];
+            for (const c of Object.values(Chart.instances)) {
+                const o = c.options;
+                if (o.plugins && o.plugins.legend && o.plugins.legend.labels) o.plugins.legend.labels.color = muted;
+                for (const ax of Object.values(o.scales || {})) {
+                    if (ax.ticks) ax.ticks.color = muted;
+                    if (ax.grid && ax.grid.display !== false) ax.grid.color = grid;
+                }
+            }
+            if (chartDist) chartDist.data.datasets[0].backgroundColor = palette;
+            if (chartResource) { chartResource.data.datasets[0].backgroundColor = cpu; chartResource.data.datasets[1].backgroundColor = ram; }
+            [[chartCpuMonitor, cpu], [chartMemMonitor, ram], [chartDiskMonitor, disk]].forEach(([c, col]) => { if (c) c.data.datasets[0].backgroundColor = [col, track]; });
+            if (typeof chartHistory !== 'undefined' && chartHistory) { chartHistory.data.datasets[0].borderColor = cpu; chartHistory.data.datasets[0].backgroundColor = cssv('--accent-soft'); chartHistory.data.datasets[1].borderColor = cssv('--warn'); }
+            for (const c of Object.values(Chart.instances)) c.update('none');
+        }
+        matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) { updateThemeBtn(); themeCharts(); } });
 
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -1362,6 +1963,7 @@
                     }
                 }
             });
+            themeCharts();
         }
 
         function initMonitorCharts() {
@@ -1379,6 +1981,7 @@
             chartDiskMonitor = new Chart(document.getElementById('chartDiskMonitor'), {
                 ...gaugeOpts, data: { labels: [t('mon.used'), t('mon.free')], datasets: [{ data: [0, 100], borderWidth: 0, backgroundColor: ['#94a3b8', '#262c36'] }] }
             });
+            themeCharts();
         }
 
         // Data Loading
@@ -1388,8 +1991,12 @@
                 const d = await res.json();
                 document.getElementById('stat-nodes').textContent = d.node_count || 0;
                 document.getElementById('stat-guests').textContent = `${d.running || 0}/${d.total || 0}`;
-                document.getElementById('stat-cpu').textContent = `${d.avg_cpu || 0}%`;
-                document.getElementById('stat-balance').textContent = d.balanced ? t('stat.balanced') : pct(d.max_diff?.toFixed(0) || 0);
+                document.getElementById('stat-cpu').textContent = pct(d.avg_cpu || 0);
+                document.getElementById('val-ram').textContent = pct(d.avg_mem || 0);
+                document.getElementById('val-bal').textContent = Math.round(d.balance || 0);
+                setRing('ring-bal', d.balance); setRing('ring-ram', d.avg_mem); setRing('ring-cpu', d.avg_cpu);
+                document.getElementById('hero-title').textContent = t(d.balanced ? 'dash.h_ok' : 'dash.h_bad');
+                document.getElementById('hero-sub').textContent = t(d.balanced ? 'dash.h_ok_sub' : 'dash.h_bad_sub', { diff: (d.max_diff || 0).toFixed(1) });
                 document.getElementById('lastUpdate').textContent = t('hdr.last', { t: d.time || '-' });
             } catch (e) { console.error(e); }
         }
@@ -1651,7 +2258,7 @@
 
         function showToast(msg, type) {
             const toast = document.createElement('div');
-            toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg text-sm font-medium z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+            toast.className = 'cb-toast ' + (type === 'success' ? 'ok' : 'bad');
             toast.textContent = msg;
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
@@ -1699,15 +2306,19 @@
                 const h = d.ha || {};
                 hcSet('hc-ha', h.ok, h.error ? esc(h.error) :
                     `<p>${t('hc.ha_total', { n: h.total })}</p>` +
-                    (h.bad || []).map(b => `<p><span class="dot bad"></span>${esc(b.sid)} @ ${esc(b.node)} <span class="text-gray-500">${t('hc.ha_state', { s: esc(b.state), r: esc(b.request_state) })}</span></p>`).join(''));
+                    (h.bad || []).map(b => `<p><span class="dot bad"></span>${esc(b.sid)} @ ${esc(b.node)} <span class="text-gray-500">${t('hc.ha_state', { s: esc(b.state), r: esc(b.request_state) })}</span></p>`).join('') +
+                    ((h.unprotected || []).length ? `<p class="mt-2 text-xs text-gray-400">${t('hc.ha_unprot', { n: h.unprotected.length })}</p>` +
+                        h.unprotected.map(u => `<p><span class="dot" style="background:var(--accent)"></span>${esc(u.vmid)} ${esc(u.name)} <span class="text-gray-500">@ ${esc(u.node)}</span></p>`).join('') : ''));
 
                 const b = d.backups || {};
                 const probs = b.problems || [];
                 const onlyWarn = !b.ok && probs.length > 0 && probs.every(p => p.level === 'warn');
                 hcSet('hc-backups', b.ok, b.error ? esc(b.error) :
                     `<p>${t('hc.bk_summary', { ok: b.newest_ok, total: b.total })}</p>` +
-                    probs.slice(0, 8).map(p => `<p>${p.level === 'bad' ? '<span class="dot bad"></span>' : '<span class="dot warn"></span>'} ${esc(p.vmid)} ${esc(p.name)} <span class="text-gray-500">${p.last ? t('hc.bk_last', { t: esc(p.last), h: p.age_h }) : t('hc.bk_none')}</span></p>`).join('') +
-                    (probs.length > 8 ? `<p class="text-gray-500">${t('hc.more', { n: probs.length - 8 })}</p>` : ''), onlyWarn);
+                    probs.slice(0, 8).map(p => `<p>${p.level === 'bad' ? '<span class="dot bad"></span>' : '<span class="dot warn"></span>'} ${esc(p.vmid)} ${esc(p.name)} <span class="text-gray-500">${p.reason === 'no_job' ? t('hc.bk_nojob') : p.last ? t('hc.bk_last', { t: esc(p.last), h: p.age_h }) : t('hc.bk_none')}</span></p>`).join('') +
+                    (probs.length > 8 ? `<p class="text-gray-500">${t('hc.more', { n: probs.length - 8 })}</p>` : '') +
+                    (b.pending || []).map(p => `<p><span class="dot" style="background:var(--accent)"></span>${esc(p.vmid)} ${esc(p.name)} <span class="text-gray-500">${t('hc.bk_pending', { h: p.since_h })}</span></p>`).join('') +
+                    (b.skipped ? `<p class="text-gray-500 text-xs mt-1">${t('hc.bk_skipped', { n: b.skipped })}</p>` : ''), onlyWarn);
 
                 const tk = d.tasks || {};
                 const tEl = document.getElementById('hc-tasks');
@@ -1813,6 +2424,7 @@
                         scales: { x: { ticks: { color: '#8b939e', maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
                                   y: { ticks: { color: '#8b939e' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true } } }
                 });
+                themeCharts();
             } else {
                 chartHistory.data.labels = labels;
                 chartHistory.data.datasets[0].data = pts.map(p => p.bal);
@@ -1837,7 +2449,7 @@
                     : m.reason === 'maintenance_return' ? t('h.r_return')
                     : m.reason === 'rule' ? t('h.r_rule', { name: esc(m.rule), type: t('r.type.' + m.rule_type) })
                     : `<span class="text-gray-500">${t('h.r_legacy')}${m.bal_before != null ? t('h.r_score', { s: m.bal_before }) : ''}</span>`;
-                const err = m.error ? `<p class="text-xs mt-1" style="color:#f87171">${esc(friendlyError(m.error))}</p>` : '';
+                const err = m.error ? `<p class="text-xs mt-1" style="color:var(--bad-text)">${esc(friendlyError(m.error))}</p>` : '';
                 const dur = m.duration_s != null ? `<span class="text-xs text-gray-500 ml-1">${fmtDur(m.duration_s)}</span>` : '';
                 const pp = m.pingpong ? ' <span class="status-badge status-warning" style="padding:1px 6px;font-size:10px" title="' + t('h.pp_t') + '">' + t('h.pp') + '</span>' : '';
                 return `<tr class="border-t" style="border-color:var(--line)">
@@ -1846,7 +2458,7 @@
                     <td class="p-2.5 whitespace-nowrap">${esc(m.source)} <span class="text-gray-500">→</span> ${esc(m.target)}</td>
                     <td class="p-2.5">${reason}</td>
                     <td class="p-2.5">${m.mode === 'test' ? '<span class="text-gray-400">Test</span>' : t('h.real')}</td>
-                    <td class="p-2.5"><span class="status-badge ${r.cls}" ${r.cls ? '' : 'style="background:rgba(255,255,255,0.06);color:var(--muted)"'}><i class="fas ${r.icon} text-xs"></i> ${rText}</span>${dur}${err}</td>
+                    <td class="p-2.5"><span class="status-badge ${r.cls}" ${r.cls ? '' : 'style="background:var(--surface-2);color:var(--muted)"'}><i class="fas ${r.icon} text-xs"></i> ${rText}</span>${dur}${err}</td>
                 </tr>`;
             }).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-500">${t('h.empty')}</td></tr>`;
             document.getElementById('hist-count').textContent = rows.length > shown.length ? t('h.count_part', { n: rows.length, m: shown.length }) : t('h.count', { n: rows.length });
@@ -1876,7 +2488,7 @@
                     slot.innerHTML = `<span class="status-badge status-warning"><i class="fas fa-screwdriver-wrench text-xs"></i> ${t('m.in')}</span>
                         <button onclick="openMaintExit('${esc(n.name)}')" class="px-3 py-1.5 btn-secondary rounded-lg text-xs">${t('m.exit_btn')}</button>`;
                 } else if (n.returning) {
-                    slot.innerHTML = `<span class="status-badge" style="background:rgba(255,255,255,0.06);color:var(--muted)"><i class="fas fa-rotate-left text-xs"></i> ${t('m.returning')}</span>`;
+                    slot.innerHTML = `<span class="status-badge" style="background:var(--surface-2);color:var(--muted)"><i class="fas fa-rotate-left text-xs"></i> ${t('m.returning')}</span>`;
                 } else {
                     const disabled = inMaint || returning.length;
                     slot.innerHTML = `<button ${disabled ? `disabled title="${t('m.one_node')}"` : ''} onclick="openMaintEnter('${esc(n.name)}')"
@@ -1970,6 +2582,16 @@
         const RULE_TYPES = ['anti-affinity', 'affinity', 'pin'];
         const RULE_ICON = { 'anti-affinity': 'fa-arrows-left-right', affinity: 'fa-link', pin: 'fa-thumbtack' };
 
+        function toggleImpInfo(force) {
+            const el = document.getElementById('imp-info');
+            const show = force !== undefined ? force : el.classList.contains('hidden');
+            el.classList.toggle('hidden', !show);
+            try { localStorage.setItem('impInfo', show ? '1' : '0'); } catch (e) {}
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            try { if (localStorage.getItem('impInfo') !== '0') toggleImpInfo(true); } catch (e) {}
+        });
+
         function toggleRulesInfo(force) {
             const el = document.getElementById('rules-info');
             const show = force !== undefined ? force : el.classList.contains('hidden');
@@ -1995,7 +2617,7 @@
         }
 
         function ruleStatusHtml(r) {
-            if (!r.enabled) return `<span class="status-badge" style="background:rgba(255,255,255,0.06);color:var(--muted)">${t('r.off')}</span>`;
+            if (!r.enabled) return `<span class="status-badge" style="background:var(--surface-2);color:var(--muted)">${t('r.off')}</span>`;
             const st = r.status || {};
             let h = st.ok ? `<span class="status-badge status-success"><i class="fas fa-check-circle text-xs"></i> ${t('r.ok')}</span>`
                 : `<span class="status-badge status-warning"><i class="fas fa-exclamation-circle text-xs"></i> ${t('r.violated', { vms: st.bad.join(', ') })}</span>
@@ -2136,6 +2758,357 @@
             closeRuleEditor();
         }
 
+        // ============ DISK IMPORT ============
+        const IMP_EXT = ['vhd', 'vhdx', 'vmdk', 'qcow2', 'raw', 'img', 'ova'];
+        let impData = { storages: [], files: [], jobs: [], chunk: 32 * 1024 * 1024, node: '', loaded: false };
+        const impUploads = {};
+        let impWizard = null, impJobsTimer = null, impRunning = new Set();
+
+        function fmtBytes(b) {
+            if (b == null) return '—';
+            const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let i = 0;
+            while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+            return `${b.toFixed(i ? 1 : 0)} ${u[i]}`;
+        }
+        function fmtDur(s) {
+            if (!isFinite(s) || s < 0) return '—';
+            const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+            return h ? `${h}h ${m}m` : m ? `${m}m ${Math.floor(s % 60)}s` : `${Math.floor(s)}s`;
+        }
+        async function impJson(url, opts) {
+            const r = await fetch(url, opts);
+            let d = {};
+            try { d = await r.json(); } catch (e) {}
+            if (!r.ok || d.success === false) {
+                const err = new Error(d.error || ('http_' + r.status));
+                err.data = d; err.status = r.status;
+                throw err;
+            }
+            return d;
+        }
+        function impErr(e) {
+            const d = e.data || {}, key = 'imp.err.' + e.message;
+            const p = { field: d.field ? t('imp.f.' + d.field) : '', node: d.node || '', vmid: d.vmid || '', free: fmtBytes(d.free), e: e.message };
+            const s = t(key, p);
+            return s === key ? t('imp.err.generic', p) : s;
+        }
+
+        async function loadImport() {
+            try {
+                const [s, f] = await Promise.all([impJson('/api/import/storages'), impJson('/api/import/files')]);
+                Object.assign(impData, { storages: s.storages, chunk: s.chunk_bytes, node: s.dashboard_node, files: f.files, loaded: true, error: null });
+            } catch (e) { impData.error = impErr(e); impData.loaded = true; }
+            renderImport();
+            loadImportJobs();
+        }
+
+        function renderImport() {
+            const sel = document.getElementById('imp-storage');
+            if (!sel || !impData.loaded) return;
+            const prev = sel.value;
+            sel.innerHTML = impData.storages.map(s => `<option value="${esc(s.storage)}">${esc(s.storage)} · ${esc(t('imp.free', { n: fmtBytes(s.free) }))}${s.shared ? '' : ' · ' + esc(t('imp.local_only', { node: impData.node }))}</option>`).join('');
+            const pick = impData.storages.find(s => s.storage === prev) || impData.storages.find(s => s.shared) || impData.storages[0];
+            if (pick) sel.value = pick.storage;
+            const none = !impData.storages.length;
+            document.getElementById('imp-drop').classList.toggle('disabled', none);
+            const ns = document.getElementById('imp-noshare');
+            ns.classList.toggle('hidden', !none && !impData.error);
+            ns.innerHTML = impData.error ? esc(impData.error) : none ? t('imp.no_storage') : '';
+            document.getElementById('imp-files').innerHTML = impData.files.length ? impData.files.map(f => {
+                const actions = f.partial ? ''
+                    : `<button onclick="openImportWizard('${esc(f.storage)}', '${esc(f.file)}')" class="px-2.5 py-1 btn-orange rounded text-xs font-medium whitespace-nowrap"><i class="fas fa-file-import"></i> ${esc(t('imp.import_btn'))}</button>`;
+                return `<tr class="border-t" style="border-color:var(--line)">
+                    <td class="p-2.5" style="min-width:180px;word-break:break-word"><span class="font-medium">${esc(f.file)}</span>
+                        ${f.partial ? `<span class="status-badge status-warning whitespace-nowrap ml-1" style="padding:1px 6px;font-size:10px">${esc(t('imp.partial'))}</span>
+                        <p class="text-xs text-gray-500 mt-0.5">${esc(t('imp.partial_hint'))}</p>` : ''}</td>
+                    <td class="p-2.5 text-gray-400">${esc(f.storage)}</td>
+                    <td class="p-2.5"><span class="font-mono text-xs uppercase">${esc(f.ext)}</span></td>
+                    <td class="p-2.5 text-right whitespace-nowrap">${fmtBytes(f.size)}</td>
+                    <td class="p-2.5 text-gray-400 whitespace-nowrap">${esc(f.mtime)}</td>
+                    <td class="p-2.5 text-right whitespace-nowrap">${actions}
+                        <button onclick="impDeleteFile('${esc(f.storage)}', '${esc(f.file)}', ${f.partial ? 1 : 0})" class="px-2 py-1 btn-secondary rounded text-xs" title="${esc(t('imp.delete'))}" aria-label="${esc(t('imp.delete'))}"><i class="fas fa-trash"></i></button></td>
+                </tr>`;
+            }).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-500">${esc(t('imp.no_files'))}</td></tr>`;
+            renderImpUploads();
+        }
+
+        function impSafeName(n) {
+            return n.replace(/[^A-Za-z0-9._ ()+-]/g, '_').replace(/\.{2,}/g, '.').replace(/^[^A-Za-z0-9]+/, '').slice(0, 150) || 'disk.img';
+        }
+
+        function impFilesChosen(list) {
+            const storage = document.getElementById('imp-storage').value;
+            if (!storage) { showToast(t('imp.err.storage'), 'error'); return; }
+            for (const f of list) {
+                if (!IMP_EXT.includes(f.name.split('.').pop().toLowerCase())) { showToast(`${f.name}: ${t('imp.err.extension')}`, 'error'); continue; }
+                const name = impSafeName(f.name), key = storage + '/' + name;
+                if (impUploads[key] && impUploads[key].state === 'uploading') continue;
+                impUploads[key] = { file: f, storage, name, size: f.size, offset: 0, state: 'queued', speed: 0 };
+                impUpload(key);
+            }
+            renderImpUploads();
+        }
+
+        async function impUpload(key) {
+            const u = impUploads[key];
+            if (!u) return;
+            u.state = 'uploading'; u.err = null; u.ctrl = new AbortController();
+            renderImpUploads();
+            try {
+                const init = await impJson('/api/import/upload', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ storage: u.storage, file: u.name, size: u.size }), signal: u.ctrl.signal });
+                u.offset = init.offset;
+                let retries = 0;
+                while (u.offset < u.size) {
+                    const end = Math.min(u.offset + impData.chunk, u.size), t0 = performance.now();
+                    try {
+                        const r = await impJson(`/api/import/upload?storage=${encodeURIComponent(u.storage)}&file=${encodeURIComponent(u.name)}&offset=${u.offset}&size=${u.size}`,
+                            { method: 'PUT', body: u.file.slice(u.offset, end), signal: u.ctrl.signal });
+                        const sp = (end - u.offset) / Math.max(0.001, (performance.now() - t0) / 1000);
+                        u.speed = u.speed ? u.speed * 0.7 + sp * 0.3 : sp;
+                        u.offset = r.offset; retries = 0;
+                    } catch (e) {
+                        if (e.name === 'AbortError') throw e;
+                        if (e.message === 'offset' && e.data && e.data.offset != null) { u.offset = e.data.offset; continue; }
+                        if (++retries > 5 || ['size', 'filename', 'extension', 'storage', 'space', 'no_upload'].includes(e.message)) throw e;
+                        await new Promise(r => setTimeout(r, 2000 * retries));
+                    }
+                    renderImpUploads();
+                }
+                u.state = 'done';
+                showToast(t('imp.uploaded', { name: u.name }), 'success');
+                await loadImport();
+                if (!impWizard) openImportWizard(u.storage, u.name);
+            } catch (e) {
+                if (e.name === 'AbortError') u.state = 'paused';
+                else { u.state = 'error'; u.err = impErr(e); }
+            }
+            renderImpUploads();
+        }
+
+        function impPause(key) { const u = impUploads[key]; if (u && u.ctrl) u.ctrl.abort(); }
+        function impResume(key) { impUpload(key); }
+        async function impCancel(key) {
+            const u = impUploads[key];
+            if (!u || !confirm(t('imp.cancel_q'))) return;
+            if (u.ctrl) u.ctrl.abort();
+            delete impUploads[key];
+            try { await impJson(`/api/import/file?storage=${encodeURIComponent(u.storage)}&file=${encodeURIComponent(u.name)}&partial=1`, { method: 'DELETE' }); } catch (e) {}
+            loadImport();
+        }
+
+        function renderImpUploads() {
+            const el = document.getElementById('imp-uploads');
+            if (!el) return;
+            el.innerHTML = Object.entries(impUploads).map(([key, u]) => {
+                const pc = u.size ? Math.floor(u.offset / u.size * 100) : 0;
+                const k = esc(key).replace(/'/g, '&#39;');
+                const btn = (fn, icon, label) => `<button onclick="${fn}('${k}')" class="px-2 py-1 btn-secondary rounded text-xs" title="${esc(label)}" aria-label="${esc(label)}"><i class="fas ${icon}"></i></button>`;
+                let info = `${fmtBytes(u.offset)} / ${fmtBytes(u.size)}`;
+                if (u.state === 'uploading' && u.speed) info += ' · ' + t('imp.eta', { speed: fmtBytes(u.speed), eta: fmtDur((u.size - u.offset) / u.speed) });
+                const actions = u.state === 'uploading' ? btn('impPause', 'fa-pause', t('imp.pause')) + btn('impCancel', 'fa-xmark', t('imp.cancel'))
+                    : (u.state === 'paused' || u.state === 'error') ? btn('impResume', 'fa-play', t('imp.resume')) + btn('impCancel', 'fa-xmark', t('imp.cancel'))
+                    : u.state === 'done' ? `<button onclick="openImportWizard('${esc(u.storage)}', '${esc(u.name)}')" class="px-2.5 py-1 btn-orange rounded text-xs font-medium">${esc(t('imp.import_btn'))}</button>` : '';
+                return `<div class="p-3 rounded-lg border" style="border-color:var(--line);background:var(--surface-2)">
+                    <div class="flex items-center justify-between gap-3 mb-2">
+                        <p class="text-sm font-medium break-all">${esc(u.name)} <span class="text-xs text-gray-500">→ ${esc(u.storage)}</span></p>
+                        <div class="flex items-center gap-2 whitespace-nowrap"><span class="text-xs ${u.state === 'error' ? '' : 'text-gray-400'}" ${u.state === 'error' ? 'style="color:var(--bad)"' : ''}>${esc(t('imp.up.' + u.state))}</span>${actions}</div>
+                    </div>
+                    <div class="imp-bar" role="progressbar" aria-valuenow="${pc}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pc}%"></div></div>
+                    <p class="text-xs text-gray-500 mt-1">${pc}% · ${info}${u.err ? ` · <span style="color:var(--bad)">${esc(u.err)}</span>` : ''}</p>
+                </div>`;
+            }).join('');
+        }
+
+        async function impDeleteFile(storage, file, partial) {
+            if (!confirm(t('imp.del_q', { name: file }))) return;
+            try {
+                await impJson(`/api/import/file?storage=${encodeURIComponent(storage)}&file=${encodeURIComponent(file)}${partial ? '&partial=1' : ''}`, { method: 'DELETE' });
+                delete impUploads[storage + '/' + file];
+                showToast(t('imp.deleted'), 'success');
+            } catch (e) { showToast(impErr(e), 'error'); }
+            loadImport();
+        }
+
+        // ---- wizard
+        function impOptions(id, items, selected) {
+            document.getElementById(id).innerHTML = items.map(([v, l, dis]) => `<option value="${esc(v)}" ${v === selected ? 'selected' : ''} ${dis ? 'disabled' : ''}>${esc(l)}</option>`).join('');
+        }
+        function impVal(id) { return document.getElementById(id).value; }
+
+        async function openImportWizard(storage, file) {
+            impWizard = { storage, file };
+            document.getElementById('imp-modal-file').textContent = `${storage}:import/${file}`;
+            document.getElementById('imp-detect').innerHTML = `<p class="col-span-3 text-gray-400"><i class="fas fa-spinner fa-spin"></i> ${esc(t('imp.detecting'))}</p>`;
+            document.getElementById('imp-warn').innerHTML = '';
+            document.getElementById('imp-form').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('imp-error').classList.add('hidden');
+            document.getElementById('imp-submit').disabled = true;
+            document.getElementById('imp-modal').classList.remove('hidden');
+            try {
+                const [info, opt] = await Promise.all([
+                    impJson(`/api/import/inspect?storage=${encodeURIComponent(storage)}&file=${encodeURIComponent(file)}`),
+                    impJson('/api/import/options')]);
+                if (!impWizard || impWizard.file !== file) return;
+                Object.assign(impWizard, { info, opt });
+                const win = info.os === 'windows' || String(info.ostype || '').startsWith('w');
+                const ostype = info.ostype && opt.ostypes.includes(info.ostype) ? info.ostype : win ? 'win10' : info.os === 'linux' ? 'l26' : 'other';
+                document.getElementById('imp-f-name').value = info.suggested_name;
+                document.getElementById('imp-f-vmid').value = opt.nextid || '';
+                document.getElementById('imp-f-cores').value = info.cores || (win ? 4 : 2);
+                document.getElementById('imp-f-mem').value = ((info.memory_mb || (win ? 8192 : 4096)) / 1024);
+                impOptions('imp-f-ostype', opt.ostypes.map(o => [o, t('imp.os.' + o)]), ostype);
+                impOptions('imp-f-bios', [['seabios', t('imp.bios.seabios')], ['ovmf', t('imp.bios.ovmf')]], info.firmware === 'uefi' ? 'ovmf' : 'seabios');
+                impOptions('imp-f-bus', opt.buses.map(b => [b, t('imp.bus.' + b)]), win ? 'sata' : 'scsi');
+                impOptions('imp-f-nic', opt.nic_models.map(n => [n, t('imp.nic.' + n)]), win ? 'e1000' : 'virtio');
+                impOptions('imp-f-iso', [['', t('imp.none')], ...opt.virtio_isos.map(i => [i, i])], win && opt.virtio_isos.length ? opt.virtio_isos[0] : '');
+                document.getElementById('imp-f-vlan').value = '';
+                const vgb = info.virtual_size ? Math.ceil(info.virtual_size / 1024 ** 3) : null;
+                const dIn = document.getElementById('imp-f-disk');
+                document.getElementById('imp-disk-row').classList.toggle('hidden', !vgb);
+                dIn.min = vgb || 1; dIn.value = vgb || ''; dIn.dataset.orig = vgb || '';
+                document.getElementById('imp-f-start').checked = false;
+                document.getElementById('imp-f-del').checked = false;
+                document.getElementById('imp-f-ha').checked = true;
+                impOptions('imp-f-hagroup', [['', t('imp.ha_none')], ...(opt.ha_groups || []).map(g => [g, g])], '');
+                impHaChanged();
+                document.getElementById('imp-f-tpm').checked = ostype === 'win11';
+                impFillNodes(opt);
+                impOsChanged();
+                renderImpDetect();
+                document.getElementById('imp-form').classList.remove('opacity-50', 'pointer-events-none');
+                document.getElementById('imp-submit').disabled = false;
+                document.getElementById('imp-f-name').focus();
+            } catch (e) {
+                document.getElementById('imp-detect').innerHTML = '';
+                const el = document.getElementById('imp-error');
+                el.textContent = impErr(e); el.classList.remove('hidden');
+            }
+        }
+
+        function impFillNodes(opt) {
+            const local = !impWizard.info.shared;
+            impOptions('imp-f-node', opt.nodes.map(n => [n.name,
+                t('imp.node_label', { name: n.name, mem: pct(n.mem_percent), cpu: pct(n.cpu) }) + (n.name === opt.recommended ? ` (${t('imp.recommended')})` : ''),
+                local && n.name !== impData.node]), local ? impData.node : opt.node);
+            impFillNodeOpts(opt);
+        }
+        function impFillNodeOpts(opt) {
+            impOptions('imp-f-target', opt.storages.map(s => [s.storage, `${s.storage} (${s.type}) · ${t('imp.free', { n: fmtBytes(s.avail) })}${s.shared ? ' · ' + t('imp.shared') : ''}`]), opt.storages[0] && opt.storages[0].storage);
+            impOptions('imp-f-bridge', opt.bridges.map(b => [b, b]), opt.bridges[0]);
+        }
+        async function impNodeChanged() {
+            try {
+                const memMb = Math.round(parseFloat(impVal('imp-f-mem') || '0') * 1024);
+                const opt = await impJson(`/api/import/options?node=${encodeURIComponent(impVal('imp-f-node'))}&memory_mb=${memMb}`);
+                impFillNodeOpts(opt);
+            } catch (e) { showToast(impErr(e), 'error'); }
+        }
+        function impOsChanged() {
+            const win = impVal('imp-f-ostype').startsWith('w'), uefi = impVal('imp-f-bios') === 'ovmf';
+            document.getElementById('imp-tpm-row').classList.toggle('hidden', !uefi);
+            if (!uefi) document.getElementById('imp-f-tpm').checked = false;
+            document.getElementById('imp-win-hint').classList.toggle('hidden', !win);
+        }
+        function renderImpDetect() {
+            const i = impWizard && impWizard.info;
+            if (!i) return;
+            const item = (label, value) => `<div class="p-2.5 rounded-lg border" style="border-color:var(--line);background:var(--surface-2)"><p class="text-xs text-gray-500">${esc(label)}</p><p class="font-medium">${esc(value)}</p></div>`;
+            const parts = [item(t('imp.d_format'), i.format), item(t('imp.d_size'), fmtBytes(i.size))];
+            if (i.virtual_size) parts.push(item(t('imp.d_vsize'), fmtBytes(i.virtual_size)));
+            if (i.disks) parts.push(item(t('imp.d_disks'), i.disks.length));
+            parts.push(item(t('imp.d_fw'), t('imp.fw.' + (i.firmware || 'unknown'))), item(t('imp.d_os'), t('imp.os_g.' + (i.os || 'unknown'))));
+            document.getElementById('imp-detect').innerHTML = parts.join('');
+            document.getElementById('imp-warn').innerHTML = (i.warnings || []).map(w => {
+                const k = 'imp.w.' + w, s = t(k);
+                return `<p style="color:var(--warn)"><i class="fas fa-triangle-exclamation"></i> ${esc(s === k ? t('imp.w.generic', { w }) : s)}</p>`;
+            }).join('');
+        }
+        function impHaChanged() {
+            document.getElementById('imp-f-hagroup').classList.toggle('hidden', !document.getElementById('imp-f-ha').checked);
+        }
+        function closeImportWizard() { document.getElementById('imp-modal').classList.add('hidden'); impWizard = null; }
+
+        async function submitImport() {
+            if (!impWizard || !impWizard.info) return;
+            const body = { storage: impWizard.storage, file: impWizard.file, name: impVal('imp-f-name').trim(), vmid: parseInt(impVal('imp-f-vmid'), 10),
+                node: impVal('imp-f-node'), target_storage: impVal('imp-f-target'), cores: parseInt(impVal('imp-f-cores'), 10),
+                memory_mb: Math.round(parseFloat(impVal('imp-f-mem')) * 1024), ostype: impVal('imp-f-ostype'), bios: impVal('imp-f-bios'),
+                tpm: document.getElementById('imp-f-tpm').checked, bus: impVal('imp-f-bus'), nic_model: impVal('imp-f-nic'),
+                bridge: impVal('imp-f-bridge'), vlan: impVal('imp-f-vlan'), virtio_iso: impVal('imp-f-iso'),
+                start: document.getElementById('imp-f-start').checked, delete_source: document.getElementById('imp-f-del').checked,
+                disk_gb: (() => { const el = document.getElementById('imp-f-disk'); return el.dataset.orig && el.value && el.value !== el.dataset.orig ? parseInt(el.value, 10) : null; })(),
+                ha: document.getElementById('imp-f-ha').checked, ha_group: document.getElementById('imp-f-ha').checked ? impVal('imp-f-hagroup') : '' };
+            const btn = document.getElementById('imp-submit'), el = document.getElementById('imp-error');
+            btn.disabled = true; el.classList.add('hidden');
+            try {
+                await impJson('/api/import/start', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                closeImportWizard();
+                showToast(t('imp.started'), 'success');
+                loadImportJobs();
+            } catch (e) {
+                el.textContent = impErr(e); el.classList.remove('hidden');
+            } finally { btn.disabled = false; }
+        }
+
+        // ---- jobs
+        async function loadImportJobs() {
+            try { impData.jobs = (await impJson('/api/import/jobs')).jobs; } catch (e) { return; }
+            const running = new Set(impData.jobs.filter(j => j.status === 'running').map(j => j.id));
+            if ([...impRunning].some(id => !running.has(id))) impJsonFilesRefresh();
+            impRunning = running;
+            renderImpJobs();
+            clearTimeout(impJobsTimer);
+            if (running.size && currentPage === 'import') impJobsTimer = setTimeout(loadImportJobs, 3000);
+        }
+        async function impJsonFilesRefresh() {
+            try { impData.files = (await impJson('/api/import/files')).files; renderImport(); } catch (e) {}
+        }
+        function renderImpJobs() {
+            const el = document.getElementById('imp-jobs');
+            if (!el) return;
+            el.innerHTML = impData.jobs.length ? impData.jobs.map(j => {
+                let st;
+                if (j.status === 'running') {
+                    const p = Math.floor(j.progress || 0);
+                    st = `<p class="text-xs mb-1"><i class="fas fa-spinner fa-spin text-gray-400"></i> ${esc(t('imp.st_running', { p: pct(p) }))}${j.disk_count > 1 ? ' · ' + esc(t('imp.st_disk', { i: Math.max(1, j.disk_index || 1), n: j.disk_count })) : ''}</p>
+                          <div class="imp-bar" style="min-width:140px" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100"><div style="width:${p}%"></div></div>`;
+                } else if (j.status === 'done') {
+                    st = `<span class="status-badge status-success"><i class="fas fa-check-circle text-xs"></i> ${esc(t('imp.st_done'))}</span>
+                          ${j.node_ip ? `<a href="https://${esc(j.node_ip)}:8006/#v1:0:=qemu%2F${esc(j.vmid)}" target="_blank" rel="noopener" class="text-xs ml-2" style="color:var(--accent)">${esc(t('imp.open_pve'))} <i class="fas fa-arrow-up-right-from-square"></i></a>` : ''}
+                          ${j.resized_gb ? `<p class="text-xs text-gray-500 mt-1">${esc(t('imp.resized', { n: j.resized_gb }))}</p>` : ''}
+                          ${j.resize_error ? `<p class="text-xs mt-1" style="color:var(--warn-text)">${esc(t('imp.resize_failed', { e: j.resize_error }))}</p>` : ''}
+                          ${j.ha_added ? `<p class="text-xs text-gray-500 mt-1">${esc(t('imp.ha_added', { g: j.ha_group || t('imp.ha_none') }))}</p>` : ''}
+                          ${j.ha_added === false ? `<p class="text-xs mt-1" style="color:var(--warn-text)">${esc(t('imp.ha_failed', { e: j.ha_error || '' }))}</p>` : ''}
+                          ${j.source_deleted ? `<p class="text-xs text-gray-500 mt-1">${esc(t('imp.src_deleted'))}</p>` : ''}`;
+                } else if (j.status === 'failed') {
+                    st = `<span class="status-badge status-error"><i class="fas fa-times-circle text-xs"></i> ${esc(t('imp.st_failed'))}</span><p class="text-xs text-gray-400 mt-1 break-all">${esc(j.error || '')}</p>`;
+                } else {
+                    st = `<span class="status-badge status-warning"><i class="fas fa-exclamation-circle text-xs"></i> ${esc(t('imp.st_unknown'))}</span>`;
+                }
+                return `<tr class="border-t align-top" style="border-color:var(--line)">
+                    <td class="p-2.5 whitespace-nowrap"><b>${esc(j.vmid)}</b> ${esc(j.name)}</td>
+                    <td class="p-2.5 text-gray-400 break-all">${esc(j.file)}</td>
+                    <td class="p-2.5 whitespace-nowrap">${esc(j.node)} <span class="text-gray-500">/ ${esc(j.target_storage)}</span></td>
+                    <td class="p-2.5">${st}</td>
+                    <td class="p-2.5 text-gray-400 whitespace-nowrap">${esc(j.created)}</td></tr>`;
+            }).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-500">${esc(t('imp.no_jobs'))}</td></tr>`;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const dz = document.getElementById('imp-drop');
+            ['dragenter', 'dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('drag'); }));
+            ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('drag'); }));
+            dz.addEventListener('drop', e => impFilesChosen(e.dataTransfer.files));
+            // a file dropped next to the drop zone must not make the browser leave the page
+            ['dragover', 'drop'].forEach(ev => window.addEventListener(ev, e => { if (currentPage === 'import') e.preventDefault(); }));
+            window.addEventListener('beforeunload', e => {
+                if (Object.values(impUploads).some(u => u.state === 'uploading')) { e.preventDefault(); e.returnValue = ''; }
+            });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape' && impWizard) closeImportWizard(); });
+        });
+
         async function refreshAll() {
             loadHealth();
             loadMaintenance();
@@ -2150,6 +3123,7 @@
         // Init
         document.addEventListener('DOMContentLoaded', () => {
             applyI18n();
+            updateThemeBtn();
             initCharts();
             refreshAll();
             setInterval(refreshAll, 30000);

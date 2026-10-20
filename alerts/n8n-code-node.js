@@ -12,7 +12,7 @@ const HINTS = {
   cluster: "Erişilemeyen node'un açık olduğunu ve ağ kablosunu kontrol edin. Quorum yoksa HA çalışmaz.",
   storage: "İlgili node'da paylaşımlı diski bağlayın (ör. mount <yol>) ve depolama sunucusunun (NFS) açık olduğunu kontrol edin. Disk bağlı değilken o node'a VM taşınamaz.",
   ha: "Proxmox → Datacenter → HA ekranına bakın. Error durumundaki servis için: ha-manager set vm:ID --state disabled, ardından --state started.",
-  backups: "PBS yedek görevinin çalıştığını ve yedek deposunda yer olduğunu kontrol edin.",
+  backups: "PBS yedek görevinin çalıştığını ve yedek deposunda yer olduğunu kontrol edin. \"Hiçbir yedekleme işinde yok\" diyorsa VM'i Datacenter → Backup altındaki bir işe ekleyin. Yeni açılan VM ilk gece yedeği alınana kadar (26 saat) alarm üretmez.",
   tasks: "Proxmox arayüzünde Görevler (Tasks) listesinde ilgili görevi açıp hatayı inceleyin.",
 };
 
@@ -50,8 +50,9 @@ if (!d.cluster && !d.storage) {
   const probs = b.problems || [];
   states.backups = b.ok ? 'OK' : (probs.length && probs.every(p => p.level === 'warn') ? 'UYARI' : 'SORUN');
   summary.backups = `${b.newest_ok ?? 0}/${b.total ?? 0} VM son 26 saatte yedeklendi`;
-  headline.backups = `${probs.length} VM'in yedeği eski`;
-  details.backups = b.error ? [b.error] : probs.map(p => `${p.vmid} ${p.name}: ${p.last ? `son yedek ${p.last} (${p.age_h} saat önce)` : 'hiç yedek yok'}`);
+  const noJob = probs.filter(p => p.reason === 'no_job');
+  headline.backups = noJob.length ? `${noJob.length} VM hiçbir yedekleme işinde yok` : `${probs.length} VM'in yedeği eski`;
+  details.backups = b.error ? [b.error] : probs.map(p => `${p.vmid} ${p.name}: ${p.reason === 'no_job' ? 'hiçbir yedekleme işine dahil değil (Datacenter → Backup)' : p.last ? `son yedek ${p.last} (${p.age_h} saat önce)` : 'hiç yedek yok'}`);
 
   const t = d.tasks || {};
   const failed = t.failed || [];

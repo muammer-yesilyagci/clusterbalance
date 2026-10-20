@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" width="112" alt="ClusterBalance logosu"></p>
+
 # ClusterBalance v2
 
 **Proxmox VE cluster'ları için güvenliği ön planda tutan yük dengeleyici, bakım modu ve sağlık paneli.**
@@ -17,6 +19,7 @@ taşıma güvenliyse ve gerçekten işe yarıyorsa. Bunun yanında:
 
 - bir node'u güncelleme/yeniden başlatma öncesi boşaltan ve sonra her VM'i geri taşıyan **bakım modu**,
 - panelden **yerleşim kuralları**: VM'leri ayrı tut, birlikte tut ya da bir node'a sabitle,
+- **disk içe aktarma**: `.vhd`/`.vhdx`/`.vmdk`/`.qcow2`/`.raw`/`.ova` dosyasını panele bırakın, hazır bir Proxmox VM'i alın,
 - cluster sağlığı, taşıma geçmişi ve ayarları içeren bir **web paneli**,
 - **Proxmox arayüzünün içinde** küçük bir durum kutusu,
 - e-posta/Teams/Slack uyarıları için sorgulanabilen bir **sağlık API'si** (hazır n8n akışı dahil).
@@ -41,7 +44,8 @@ ve hazır uyarılar.
 | 📜 **Taşıma geçmişi** | Ne, nereye, neden taşındı ve sonuç ne oldu — denge skoru grafiğiyle |
 | 🌍 **Türkçe ve İngilizce** | Panelde TR/EN düğmesi |
 | 🔒 **Güvenli panel** | Proxmox sertifikasıyla HTTPS, giriş, tehlikeli uç noktalar kaldırıldı |
-| ✅ **Test edildi** | Anonimleştirilmiş gerçek cluster verisi üzerinde 76 otomatik test, her push'ta CI |
+| 📥 **Disk içe aktarma** | Hyper-V/VMware/Veeam diskini sürükleyip bırakın (ya da paylaşımdan seçin) → en boş node'da hazır VM |
+| ✅ **Test edildi** | Anonimleştirilmiş gerçek cluster verisi üzerinde 170+ otomatik test, her push'ta CI |
 
 Ayrıntılar: [CHANGELOG](CHANGELOG.md).
 
@@ -58,6 +62,7 @@ Ayrıntılar: [CHANGELOG](CHANGELOG.md).
 - [Panel](#panel)
 - [Bakım modu](#bakım-modu)
 - [Yerleşim kuralları](#yerleşim-kuralları)
+- [Disk içe aktarma](#disk-içe-aktarma)
 - [Taşıma geçmişi](#taşıma-geçmişi)
 - [Sağlık API'si ve uyarılar](#sağlık-apisi-ve-uyarılar)
 - [API listesi](#api-listesi)
@@ -213,6 +218,12 @@ Panel ortam değişkenleri (`clusterbalance-dashboard.service` içinde):
 | `CB_USERS_FILE` | `/etc/clusterbalance/dashboard-users` |
 | `CB_TLS_CERT` / `CB_TLS_KEY` | `/etc/pve/local/pve-ssl.pem` / `.key` |
 | `CB_BACKUP_STORAGE` | ilk etkin PBS depolaması |
+| `CB_HA_SKIP_TAGS` | `no-ha` (bu etiketli çalışan VM'ler "HA'da değil" listesine girmez) |
+| `CB_TASKS_IGNORE` | `vncproxy,vncshell,spiceproxy,spiceshell,termproxy,vncterm` (hiç raporlanmayan görev türleri) |
+| `CB_BACKUP_SKIP_TAGS` | `temp,no-backup` (bu etiketli VM'lerin yedeği kontrol edilmez) |
+| `CB_FIRST_SEEN` | `/opt/clusterbalance/first_seen.json` (panelin her VM'i ilk gördüğü zaman) |
+| `CB_IMPORT_MAX_GB` | `4096` (kabul edilen en büyük yükleme) |
+| `CB_IMPORT_JOBS` | `/var/lib/clusterbalance/import-jobs.json` |
 | `CB_DIR`, `CB_CONFIG`, `CB_LOG`, `CB_STATE_FILE` | `/opt/clusterbalance`, `…/config.yaml`, `/var/log/clusterbalance.log`, `…/maintenance_state.json` |
 
 Panele kullanıcı eklemek:
@@ -229,6 +240,7 @@ python3 -c "import getpass;from werkzeug.security import generate_password_hash 
 | **Node'lar** | Node başına CPU/RAM/disk ve **bakım modu** butonları |
 | **Sanal Makineler / Container'lar** | Durum, CPU, bellek |
 | **Kurallar** | **Yerleşim kuralları**: VM'leri ayrı / birlikte / bir node'da tut, canlı durumla |
+| **İçe Aktar** | [Disk içe aktarma](#disk-içe-aktarma): disk dosyasını bırak, VM al |
 | **İzleme** | Cluster CPU/RAM/disk göstergeleri |
 | **Ayarlar** | Dengeleyici ayarları, elle test, **taşıma geçmişi**, ham log |
 
@@ -287,6 +299,40 @@ enforce_rules: true   # false = ihlalleri göster ama bunun için VM taşıma
 
 ![Yerleşim kuralları](docs/screenshots/rules.jpg)
 
+## Disk içe aktarma
+
+Hyper-V, VMware ya da Veeam'den Proxmox'a geçmek genelde `qemu-img convert`, `qm disk import` ve elle girilen bir
+sürü ayar demek. **İçe Aktar** sayfası bunu tek seferde yapar:
+
+1. **Disk dosyasını sayfaya bırakın** (ya da tıklayıp seçin). Desteklenenler: `.vhd`, `.vhdx`, `.vmdk`, `.qcow2`,
+   `.raw`, `.img` ve `.ova`. Büyük dosyalar 32 MB'lık parçalar hâlinde yüklenir; bağlantı koparsa aynı dosyayı
+   tekrar bırakın, **kaldığı yerden devam eder**. Paylaşıma kendiniz kopyaladığınız dosyalar da (ör. `rsync` ile
+   500 GB'lık bir disk) listede görünür — yükleme gerekmez.
+2. Panel **imajı inceler**: gerçek format (sadece uzantı değil), disk boyutu, UEFI mi BIOS mu, Windows mu Linux mu
+   (bölüm tablosundan). OVA'da OVF içindeki CPU/RAM/firmware bilgisi kullanılır.
+3. Değiştirilebilir önerilerle bir **ayar penceresi** açılır: VM adı (dosya adından), sıradaki boş VM ID,
+   **en boş node** (dengeleyicinin kullandığı yük değerleri; bakımdaki node'lar atlanır), hedef depolama, CPU, RAM,
+   işletim sistemi, firmware (+ Windows 11 için TPM), disk bağlantısı, ağ kartı, köprü, VLAN ve VirtIO sürücü
+   ISO'su. Windows için varsayılan SATA + E1000'dir; VirtIO sürücüsü olmadan da açılır.
+4. **İçe aktar**, VM'i `pvesh create /nodes/<node>/qemu … import-from=<dosya>` ile oluşturur: diski Proxmox'un
+   kendisi dönüştürür ve iş görev günlüğünde görünür. Sayfa ilerlemeyi (OVA'da disk disk), sonucu ve
+   *Proxmox'ta aç* bağlantısını gösterir; isteğe bağlı olarak VM başlatılır ve kaynak dosya silinir.
+
+**Kurulum:** dosyalar, **Import** içerik türü açık bir depolamanın `import/` klasöründe durur
+(*Datacenter → Storage → Edit → Content*, Proxmox VE 8.2+). VM'in her node'da oluşturulabilmesi için
+**paylaşımlı** (NFS/SMB) bir depolama kullanın; yerel depolamada VM sadece panelin çalıştığı node'da oluşturulabilir.
+
+**Güvenlik:** dosya adları kısıtlıdır (yol, virgül, `=` yok), yüklemeler import klasörünün dışına çıkamaz, yüklemeden
+önce boş alan kontrol edilir; sunucudaki başka dosyalara işaret eden imajlar (qcow2 backing file, harici veri dosyası,
+klasör dışındaki VMDK parçaları) reddedilir — Proxmox da dönüştürmeden önce imajı "güvenilmeyen" olarak yeniden
+denetler. İçe aktarılan bir dosya silinemez ve aynı anda ikinci kez aktarılamaz. Her yükleme, içe aktarma ve silme
+panelin denetim kaydına yazılır.
+
+![İçe Aktar sayfası](docs/screenshots/import.jpg)
+
+| ![İçe aktarma ayarları](docs/screenshots/import-wizard.jpg) |
+|---|
+
 ## Taşıma geçmişi
 
 Ayarlar → **Taşıma Geçmişi**, `/var/log/clusterbalance.log` (ve döndürülmüş kopyaları) okunarak oluşturulur. Her taşıma için:
@@ -311,7 +357,8 @@ filtreler (gerçek / test / başarısız / ileri-geri) ve 24 saatte geri taşın
   "cluster":  { "ok": true, "quorate": true, "nodes": [{ "name": "pve1", "online": true, "uptime": 2462400 }] },
   "storage":  { "ok": false, "items": [{ "storage": "nfs-vms", "node": "pve2", "mounted": false, "path": "/mnt/nfs-vms" }] },
   "ha":       { "ok": true, "total": 25, "bad": [] },
-  "backups":  { "ok": true, "storage": "pbs", "total": 27, "newest_ok": 27, "problems": [] },
+  "backups":  { "ok": true, "storage": "pbs", "total": 28, "newest_ok": 27, "problems": [], "uncovered": 0,
+                "pending": [{ "vmid": 905, "name": "new-app", "reason": "first_backup_pending", "since_h": 3.2 }], "skipped": 0 },
   "tasks":    { "ok": true, "count": 0, "failed": [] },
   "time": "17:40:46"
 }
@@ -319,7 +366,21 @@ filtreler (gerçek / test / başarısız / ileri-geri) ve 24 saatte geri taşın
 
 Kurallar: quorum yoksa ya da bir node çevrimdışıysa; paylaşımlı *dir* depolama bir node'da bağlı değilse;
 bir HA servisi `error/fence/recovery/freeze` durumundaysa ya da çalışması istenip çalışmıyorsa; bir VM'in son PBS yedeği
-50 saatten eskiyse (26 saatten sonra uyarı) ya da hiç yoksa kart kırmızıya döner; son 24 saatin başarısız görevleri listelenir.
+50 saatten eskiyse (26 saatten sonra uyarı) ya da hiç yoksa kart kırmızıya döner; son 24 saatin başarısız görevleri listelenir —
+konsol oturumları (`vncproxy`, `termproxy`, … — `CB_TASKS_IGNORE`) ve sonradan düzelenler hariç (başarısız bir aç/kapat
+görevinden sonra VM'in başarıyla açılıp kapatılması, ya da aynı görevin aynı VM'de başarıyla tekrarlanması).
+
+Yedeklerde ayrıntı:
+
+- **Yeni VM boş yere alarm üretmez.** Hiç yedeği olmayan ve 26 saatten kısa süre önce oluşturulmuş (Proxmox `ctime`)
+  ya da panel tarafından ilk kez görülmüş VM *ilk yedeği bekleniyor* (`pending`) olarak listelenir, kart yeşil kalır;
+  26 saat sonra hâlâ yedeği yoksa sorun olur.
+- **Hiçbir yedekleme işinin kapsamadığı VM her zaman sorundur** (`reason: "no_job"`), yeni olsa da — *Datacenter → Backup*
+  altındaki etkin işler değerlendirilir (tümü / VMID listesi / pool, node filtresi, hariç tutulanlar).
+- `temp` ya da `no-backup` etiketli VM'ler kontrol edilmez (`CB_BACKUP_SKIP_TAGS`).
+
+HA kartı ayrıca **HA'da olmayan çalışan VM'leri** bilgi olarak listeler (alarm ve e-posta yok): bunlar node'ları çökerse
+başka node'da açılmaz (API'de `unprotected`). Bilerek dışarıda bırakılan VM'e `no-ha` etiketi verin (`CB_HA_SKIP_TAGS`).
 
 **n8n akışı** — [`alerts/n8n-health-alert.json`](alerts/n8n-health-alert.json):
 5 dakikada bir `/api/health`'i sorgular ve **sadece durum değiştiğinde** HTML e-posta gönderir
@@ -344,6 +405,13 @@ Başka sorgulayıcılar da olur (Uptime Kuma anahtar kelime izleme, cron + curl,
 | `POST /api/maintenance/enter` `{"node":"X"}` | Node'u bakıma al |
 | `POST /api/maintenance/exit` `{"node":"X"}` | Bakımdan çıkar, VM'leri geri taşı |
 | `GET/POST /api/config` | Dengeleyici ayarlarını oku / değiştir |
+| `GET /api/import/storages`, `/api/import/files` | İçe aktarmaya açık depolamalar; `import/` klasörlerindeki dosyalar (yarım yüklemeler dahil) |
+| `POST /api/import/upload` `{"storage","file","size"}` → `PUT /api/import/upload?storage=&file=&offset=&size=` | Yüklemeyi başlat/sürdür, sonra ≤ 64 MB parçalar gönder |
+| `DELETE /api/import/file?storage=&file=[&partial=1]` | İçe aktarma dosyasını (ya da yarım yüklemeyi) sil |
+| `GET /api/import/inspect?storage=&file=` | Format, boyut, firmware/İS tahmini, güvenlik kontrolü |
+| `GET /api/import/options[?node=]` | Node'lar + önerilen node, depolamalar, köprüler, sıradaki VM ID, VirtIO ISO'ları |
+| `POST /api/import/start` | Dosyadan VM oluştur (tüm alanlar doğrulanır; hatalar kod olarak döner) |
+| `GET /api/import/jobs` | İlerleme ve sonuçla içe aktarma işleri |
 | `POST /api/proxmox/run-balance` | Dengeleyiciyi şimdi test modunda çalıştır |
 | `GET /api/proxmox/balance-status` | Son 50 log satırı |
 | `GET /api/summary`, `/api/nodes`, `/api/guests`, `/api/distribution`, `/api/top`, `/api/recommendations` | Panel sayfalarının verisi |
@@ -354,7 +422,7 @@ Başka sorgulayıcılar da olur (Uptime Kuma anahtar kelime izleme, cron + curl,
 - Dengeleyici ve panel **root** olarak çalışır (`pvesh` ve diğer node'lara SSH kullanır). Paneli Proxmox arayüzü gibi düşünün: yönetim ağında tutun, internete asla açmayın.
 - Panel sadece HTTPS ile çalışır; widget özeti dışındaki her uç nokta giriş ister. Başka kaynaklara CORS yok.
 - Şifreler werkzeug hash olarak saklanır. Otomasyon (n8n) için ayrı kullanıcı kullanın.
-- Panel dengeleyici ayarlarını değiştirebilir ve node'ları bakıma alabilir — yani canlı taşımaya yol açabilir. Keyfi komut çalıştıramaz.
+- Panel dengeleyici ayarlarını değiştirebilir ve node'ları bakıma alabilir — yani canlı taşımaya yol açabilir — ve depolamaların `import/` klasöründeki disk imajlarından VM oluşturabilir. Keyfi komut çalıştıramaz.
 - Yerleşik Flask/werkzeug sunucusu birkaç yönetici için yeterlidir; daha fazlası için bir reverse proxy arkasına koyun.
 
 ## Sorun giderme

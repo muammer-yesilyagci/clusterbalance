@@ -35,6 +35,7 @@ fi
 
 say "Installing dashboard"
 install -m 755 "$HERE/dashboard/app.py" "$PREFIX/dashboard/app.py"
+install -m 644 "$HERE/dashboard/importer.py" "$PREFIX/dashboard/importer.py"
 install -m 644 "$HERE/dashboard/templates/index.html" "$PREFIX/dashboard/templates/index.html"
 
 if [[ ! -s "$USERS_FILE" ]]; then
@@ -76,7 +77,7 @@ if [[ $WIDGET -eq 1 ]]; then
         if [[ "$ip" == "$NODE_IP" ]]; then RUN=(bash -c); CP=(install -m 644 "$TMP" /usr/share/pve-manager/js/clusterbalance.js)
         else RUN=(ssh -o BatchMode=yes "root@$ip"); CP=(scp -q "$TMP" "root@$ip:/usr/share/pve-manager/js/clusterbalance.js"); fi
         "${CP[@]}"
-        "${RUN[@]}" 'grep -q clusterbalance.js /usr/share/pve-manager/index.html.tpl || sed -i "s#</body>#  <script src=\"/pve2/js/clusterbalance.js\"></script></body>#" /usr/share/pve-manager/index.html.tpl'
+        "${RUN[@]}" 'grep -q clusterbalance.js /usr/share/pve-manager/index.html.tpl || sed -i "s#</body>#  <script src=\"/pve2/js/clusterbalance.js?v=2.1\"></script></body>#" /usr/share/pve-manager/index.html.tpl'
         echo "   widget installed on $ip"
     done
     rm -f "$TMP"

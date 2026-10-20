@@ -75,7 +75,7 @@ def test_widget_summary_is_public_but_cors_limited(client):
     r = client.get("/api/widget-summary", headers={"Origin": "https://10.0.0.12:8006"})
     assert r.status_code == 200
     assert r.headers["Access-Control-Allow-Origin"] == "https://10.0.0.12:8006"
-    assert set(r.json) == {"node_count", "total", "running_vms", "avg_cpu", "avg_mem", "balanced", "max_diff"}
+    assert set(r.json) == {"node_count", "total", "running_vms", "avg_cpu", "avg_mem", "balanced", "max_diff", "balance"}
     r = client.get("/api/widget-summary", headers={"Origin": "https://evil.example:8006"})
     assert "Access-Control-Allow-Origin" not in r.headers
 
